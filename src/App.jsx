@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom'
+import { useOrg } from './OrgContext'
+import * as db from './lib/db'
 import {
   LayoutDashboard,
   FileText,
@@ -631,14 +633,29 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
     }
   })
 
-  const [clients, setClients] = useState(() => {
+    const org = useOrg()
+  const [clients, setClients] = useState([])
+
+  const loadClients = async () => {
     try {
-      const saved = localStorage.getItem('lf_clients')
-      return saved ? JSON.parse(saved) : INITIAL_CLIENTS
-    } catch {
-      return INITIAL_CLIENTS
+      const rows = await db.listClients(org.id)
+      setClients(rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        contactPerson: r.contact_person || '',
+        email: r.email || '',
+        phone: r.phone || '',
+        gstin: r.gstin || '',
+        address: r.address || '',
+      })))
+    } catch (e) {
+      console.error(e)
     }
-  })
+  }
+
+  useEffect(() => {
+    loadClients()
+  }, [org.id])
 
   const [products, setProducts] = useState(() => {
     try {
@@ -681,9 +698,6 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
     localStorage.setItem('lf_company_profile', JSON.stringify(companyProfile))
   }, [companyProfile])
 
-  useEffect(() => {
-    localStorage.setItem('lf_clients', JSON.stringify(clients))
-  }, [clients])
 
   useEffect(() => {
     localStorage.setItem('lf_products', JSON.stringify(products))
@@ -793,8 +807,12 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
       setQuotations((prev) => prev.filter((q) => q.id !== id))
       showToast('Quotation deleted successfully', 'success')
     } else if (type === 'client') {
-      setClients((prev) => prev.filter((c) => c.id !== id))
-      showToast('Client removed successfully', 'success')
+           db.deleteClient(id)
+        .then(() => {
+          setClients((prev) => prev.filter((c) => c.id !== id))
+          showToast('Client removed successfully', 'success')
+        })
+        .catch((e) => showToast(e.message, 'error'))
     } else if (type === 'product') {
       setProducts((prev) => prev.filter((p) => p.id !== id))
       showToast('Product removed successfully', 'success')
@@ -1388,15 +1406,24 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
         <ClientModal
           client={editingClient}
           onClose={() => setClientModalOpen(false)}
-          onSave={(savedClient) => {
-            setClients((prev) => {
-              if (editingClient) {
-                return prev.map((c) => (c.id === savedClient.id ? savedClient : c))
+                  onSave={async (savedClient) => {
+            try {
+              const payload = {
+                name: savedClient.name,
+                contact_person: savedClient.contactPerson,
+                email: savedClient.email,
+                phone: savedClient.phone,
+                gstin: savedClient.gstin,
+                address: savedClient.address,
               }
-              return [{ ...savedClient, id: `cli-${Date.now()}` }, ...prev]
-            })
-            setClientModalOpen(false)
-            showToast(`Client ${savedClient.name} saved`, 'success')
+              if (editingClient) await db.updateClient(editingClient.id, payload)
+              else await db.addClient(org.id, payload)
+              await loadClients()
+              setClientModalOpen(false)
+              showToast(`Client ${savedClient.name} saved`, 'success')
+            } catch (e) {
+              showToast(e.message, 'error')
+            }
           }}
         />
       )}
