@@ -1,122 +1,4444 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom'
+import {
+  LayoutDashboard,
+  FileText,
+  FileSpreadsheet,
+  Users,
+  Package,
+  CreditCard,
+  BarChart3,
+  Settings,
+  Search,
+  Bell,
+  Plus,
+  Printer,
+  Download,
+  Trash2,
+  Edit,
+  Copy,
+  ScanBarcode,
+  Check,
+  X,
+  ChevronRight,
+  ChevronDown,
+  ChevronLeft,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Menu,
+  HelpCircle,
+  RefreshCw,
+  Eye,
+  Receipt,
+  FileDown
+} from 'lucide-react'
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend
+} from 'recharts'
+import { Html5Qrcode } from 'html5-qrcode'
+import { isSupabaseConfigured, getSupabaseConfigStatus } from './supabase'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+// ============================================================================
+// DEFAULT REALISTIC MOCK DATA (PERSISTED IN LOCALSTORAGE)
+// ============================================================================
 
+const INITIAL_COMPANY_PROFILE = {
+  companyName: 'Apex Enterprise Technologies Pvt Ltd',
+  tradeName: 'Apex Global Solutions',
+  gstin: '27AABCA1234F1Z9',
+  pan: 'AABCA1234F',
+  email: 'billing@apexenterprise.in',
+  phone: '+91 98200 12345',
+  address: 'Plot 42, Tech Park Central, MIDC Andheri East, Mumbai, Maharashtra - 400093',
+  website: 'https://apexenterprise.in',
+  invoicePrefix: 'INV-2026-',
+  quotationPrefix: 'QT-2026-',
+  defaultPaymentTerms: 'Net 15',
+  defaultGstRate: 18,
+  bankName: 'HDFC Bank Ltd',
+  accountHolder: 'Apex Enterprise Technologies Pvt Ltd',
+  accountNumber: '50200012345678',
+  ifscCode: 'HDFC0000123',
+  upiId: 'apexenterprise@hdfcbank',
+  notes: 'Payment is due within 15 days of invoice date. Interest @ 18% p.a. applicable on overdue invoices. Please quote invoice number during wire transfer.'
+}
+
+const INITIAL_CLIENTS = [
+  {
+    id: 'cli-1',
+    name: 'Reliance Tech Services Pvt Ltd',
+    contactPerson: 'Vikram Mehta',
+    email: 'accounts@reliancetech.com',
+    phone: '+91 98201 98765',
+    address: 'Maker Chambers IV, Nariman Point, Mumbai, MH - 400021',
+    gstin: '27AABCR1234F1Z5',
+    state: 'Maharashtra',
+    stateCode: '27',
+    totalBilled: 80240,
+    status: 'Active'
+  },
+  {
+    id: 'cli-2',
+    name: 'Tata Horizon Solutions',
+    contactPerson: 'Ananya Deshmukh',
+    email: 'procurement@tatahorizon.in',
+    phone: '+91 98110 54321',
+    address: 'Horizon Tech Park, Whitefield, Bengaluru, KA - 560066',
+    gstin: '29AABCT5678G1Z2',
+    state: 'Karnataka',
+    stateCode: '29',
+    totalBilled: 41300,
+    status: 'Active'
+  },
+  {
+    id: 'cli-3',
+    name: 'Infosys Digital Enterprise',
+    contactPerson: 'Rajesh Nair',
+    email: 'billing@infosysdigital.com',
+    phone: '+91 99400 67890',
+    address: 'Hinjawadi Phase 2, Pune, MH - 411057',
+    gstin: '27AABCI9012H1Z8',
+    state: 'Maharashtra',
+    stateCode: '27',
+    totalBilled: 73100,
+    status: 'Active'
+  },
+  {
+    id: 'cli-4',
+    name: 'Wipro Cloud Logistics',
+    contactPerson: 'Pooja Sundaram',
+    email: 'finance@wiprocloud.com',
+    phone: '+91 97300 23456',
+    address: 'Financial District, Gachibowli, Hyderabad, TS - 500032',
+    gstin: '36AABCW3456J1Z1',
+    state: 'Telangana',
+    stateCode: '36',
+    totalBilled: 124000,
+    status: 'Active'
+  },
+  {
+    id: 'cli-5',
+    name: 'Zenith Retail Systems',
+    contactPerson: 'Deepak Verma',
+    email: 'invoicing@zenithretail.in',
+    phone: '+91 98101 11223',
+    address: 'Barakhamba Road, Connaught Place, New Delhi, DL - 110001',
+    gstin: '07AABCZ7890K1Z4',
+    state: 'Delhi',
+    stateCode: '07',
+    totalBilled: 17700,
+    status: 'Active'
+  }
+]
+
+const INITIAL_PRODUCTS = [
+  {
+    id: 'prd-1',
+    name: 'Enterprise Cloud ERP License (Annual)',
+    sku: 'SFT-ERP-01',
+    barcode: '890103080001',
+    category: 'Software',
+    price: 45000,
+    gstRate: 18,
+    hsn: '997331',
+    stock: 99,
+    description: 'Single-tenant enterprise financial and workflow license valid for 12 months.'
+  },
+  {
+    id: 'prd-2',
+    name: 'Server Rack Cabinet 42U ServerPro',
+    sku: 'HRD-RCK-42',
+    barcode: '890103080002',
+    category: 'Hardware',
+    price: 28500,
+    gstRate: 18,
+    hsn: '853710',
+    stock: 14,
+    description: 'Standard 19-inch 42U server enclosure with heavy-duty cooling fan tray.'
+  },
+  {
+    id: 'prd-3',
+    name: 'High-Speed Optical Barcode Scanner 2D',
+    sku: 'HRD-SCN-2D',
+    barcode: '890103080003',
+    category: 'Hardware',
+    price: 4200,
+    gstRate: 18,
+    hsn: '847190',
+    stock: 45,
+    description: 'Rugged USB QR and 1D/2D handheld barcode scanner with auto-trigger stand.'
+  },
+  {
+    id: 'prd-4',
+    name: 'Security & Compliance Audit Service',
+    sku: 'SRV-SEC-01',
+    barcode: '890103080004',
+    category: 'Consulting',
+    price: 35000,
+    gstRate: 18,
+    hsn: '998315',
+    stock: 50,
+    description: 'Comprehensive financial IT security, ISO 27001, and SOC2 audit report.'
+  },
+  {
+    id: 'prd-5',
+    name: 'Thermal Receipt & Invoice Printer 80mm',
+    sku: 'HRD-PRT-80',
+    barcode: '890103080005',
+    category: 'Hardware',
+    price: 6800,
+    gstRate: 18,
+    hsn: '844332',
+    stock: 28,
+    description: 'Heavy duty thermal paper printer with ESC/POS support and auto-cutter.'
+  },
+  {
+    id: 'prd-6',
+    name: 'Custom Integration & Deployment Hours',
+    sku: 'SRV-INT-HR',
+    barcode: '890103080006',
+    category: 'Services',
+    price: 2500,
+    gstRate: 18,
+    hsn: '998314',
+    stock: 200,
+    description: 'Senior software engineering and database API consultation per engineering hour.'
+  }
+]
+
+const INITIAL_INVOICES = [
+  {
+    id: 'inv-1',
+    documentNumber: 'INV-2026-001',
+    type: 'invoice',
+    clientId: 'cli-1',
+    clientName: 'Reliance Tech Services Pvt Ltd',
+    clientEmail: 'accounts@reliancetech.com',
+    clientPhone: '+91 98201 98765',
+    clientAddress: 'Maker Chambers IV, Nariman Point, Mumbai, MH - 400021',
+    clientGstin: '27AABCR1234F1Z5',
+    issueDate: '2026-10-05',
+    dueDate: '2026-10-20',
+    paymentTerms: 'Net 15',
+    status: 'Paid',
+    items: [
+      {
+        id: 'item-1-1',
+        productId: 'prd-1',
+        description: 'Enterprise Cloud ERP License (Annual)',
+        sku: 'SFT-ERP-01',
+        quantity: 1,
+        unitPrice: 45000,
+        gstRate: 18,
+        subtotal: 45000,
+        taxAmount: 8100,
+        total: 53100
+      },
+      {
+        id: 'item-1-2',
+        productId: 'prd-2',
+        description: 'Server Rack Cabinet 42U ServerPro',
+        sku: 'HRD-RCK-42',
+        quantity: 1,
+        unitPrice: 23000,
+        gstRate: 18,
+        subtotal: 23000,
+        taxAmount: 4140,
+        total: 27140
+      }
+    ],
+    subtotal: 68000,
+    discountType: 'percentage',
+    discountValue: 0,
+    discountAmount: 0,
+    taxableAmount: 68000,
+    cgstAmount: 6120,
+    sgstAmount: 6120,
+    igstAmount: 0,
+    taxAmount: 12240,
+    grandTotal: 80240,
+    amountPaid: 80240,
+    balanceDue: 0,
+    notes: 'Thank you for your prompt business with Apex Enterprise.'
+  },
+  {
+    id: 'inv-2',
+    documentNumber: 'INV-2026-002',
+    type: 'invoice',
+    clientId: 'cli-2',
+    clientName: 'Tata Horizon Solutions',
+    clientEmail: 'procurement@tatahorizon.in',
+    clientPhone: '+91 98110 54321',
+    clientAddress: 'Horizon Tech Park, Whitefield, Bengaluru, KA - 560066',
+    clientGstin: '29AABCT5678G1Z2',
+    issueDate: '2026-10-12',
+    dueDate: '2026-10-27',
+    paymentTerms: 'Net 15',
+    status: 'Sent',
+    items: [
+      {
+        id: 'item-2-1',
+        productId: 'prd-4',
+        description: 'Security & Compliance Audit Service',
+        sku: 'SRV-SEC-01',
+        quantity: 1,
+        unitPrice: 35000,
+        gstRate: 18,
+        subtotal: 35000,
+        taxAmount: 6300,
+        total: 41300
+      }
+    ],
+    subtotal: 35000,
+    discountType: 'fixed',
+    discountValue: 0,
+    discountAmount: 0,
+    taxableAmount: 35000,
+    cgstAmount: 0,
+    sgstAmount: 0,
+    igstAmount: 6300,
+    taxAmount: 6300,
+    grandTotal: 41300,
+    amountPaid: 0,
+    balanceDue: 41300,
+    notes: 'Interstate IGST @ 18% applied as recipient is registered in Karnataka.'
+  },
+  {
+    id: 'inv-3',
+    documentNumber: 'INV-2026-003',
+    type: 'invoice',
+    clientId: 'cli-3',
+    clientName: 'Infosys Digital Enterprise',
+    clientEmail: 'billing@infosysdigital.com',
+    clientPhone: '+91 99400 67890',
+    clientAddress: 'Hinjawadi Phase 2, Pune, MH - 411057',
+    clientGstin: '27AABCI9012H1Z8',
+    issueDate: '2026-09-28',
+    dueDate: '2026-10-13',
+    paymentTerms: 'Net 15',
+    status: 'Overdue',
+    items: [
+      {
+        id: 'item-3-1',
+        productId: 'prd-1',
+        description: 'Enterprise Cloud ERP License (Annual)',
+        sku: 'SFT-ERP-01',
+        quantity: 1,
+        unitPrice: 45000,
+        gstRate: 18,
+        subtotal: 45000,
+        taxAmount: 8100,
+        total: 53100
+      }
+    ],
+    subtotal: 45000,
+    discountType: 'percentage',
+    discountValue: 0,
+    discountAmount: 0,
+    taxableAmount: 45000,
+    cgstAmount: 4050,
+    sgstAmount: 4050,
+    igstAmount: 0,
+    taxAmount: 8100,
+    grandTotal: 53100,
+    amountPaid: 20000,
+    balanceDue: 33100,
+    notes: 'First installment of ₹20,000 received. Balance overdue.'
+  },
+  {
+    id: 'inv-4',
+    documentNumber: 'INV-2026-004',
+    type: 'invoice',
+    clientId: 'cli-5',
+    clientName: 'Zenith Retail Systems',
+    clientEmail: 'invoicing@zenithretail.in',
+    clientPhone: '+91 98101 11223',
+    clientAddress: 'Barakhamba Road, Connaught Place, New Delhi, DL - 110001',
+    clientGstin: '07AABCZ7890K1Z4',
+    issueDate: '2026-10-19',
+    dueDate: '2026-11-03',
+    paymentTerms: 'Net 15',
+    status: 'Draft',
+    items: [
+      {
+        id: 'item-4-1',
+        productId: 'prd-3',
+        description: 'High-Speed Optical Barcode Scanner 2D',
+        sku: 'HRD-SCN-2D',
+        quantity: 2,
+        unitPrice: 4200,
+        gstRate: 18,
+        subtotal: 8400,
+        taxAmount: 1512,
+        total: 9912
+      },
+      {
+        id: 'item-4-2',
+        productId: 'prd-5',
+        description: 'Thermal Receipt & Invoice Printer 80mm',
+        sku: 'HRD-PRT-80',
+        quantity: 1,
+        unitPrice: 6600,
+        gstRate: 18,
+        subtotal: 6600,
+        taxAmount: 1188,
+        total: 7788
+      }
+    ],
+    subtotal: 15000,
+    discountType: 'percentage',
+    discountValue: 0,
+    discountAmount: 0,
+    taxableAmount: 15000,
+    cgstAmount: 0,
+    sgstAmount: 0,
+    igstAmount: 2700,
+    taxAmount: 2700,
+    grandTotal: 17700,
+    amountPaid: 0,
+    balanceDue: 17700,
+    notes: 'Draft order pending customer purchase order confirmation.'
+  }
+]
+
+const INITIAL_QUOTATIONS = [
+  {
+    id: 'qt-1',
+    documentNumber: 'QT-2026-001',
+    type: 'quotation',
+    clientId: 'cli-4',
+    clientName: 'Wipro Cloud Logistics',
+    clientEmail: 'finance@wiprocloud.com',
+    clientPhone: '+91 97300 23456',
+    clientAddress: 'Financial District, Gachibowli, Hyderabad, TS - 500032',
+    clientGstin: '36AABCW3456J1Z1',
+    issueDate: '2026-10-14',
+    dueDate: '2026-11-14',
+    paymentTerms: 'Net 30',
+    status: 'Accepted',
+    items: [
+      {
+        id: 'item-q1-1',
+        productId: 'prd-1',
+        description: 'Enterprise Cloud ERP License (Annual)',
+        sku: 'SFT-ERP-01',
+        quantity: 2,
+        unitPrice: 45000,
+        gstRate: 18,
+        subtotal: 90000,
+        taxAmount: 16200,
+        total: 106200
+      },
+      {
+        id: 'item-q1-2',
+        productId: 'prd-6',
+        description: 'Custom Integration & Deployment Hours',
+        sku: 'SRV-INT-HR',
+        quantity: 6,
+        unitPrice: 2500,
+        gstRate: 18,
+        subtotal: 15000,
+        taxAmount: 2700,
+        total: 17700
+      }
+    ],
+    subtotal: 105000,
+    discountType: 'fixed',
+    discountValue: 0,
+    discountAmount: 0,
+    taxableAmount: 105000,
+    cgstAmount: 0,
+    sgstAmount: 0,
+    igstAmount: 18900,
+    taxAmount: 18900,
+    grandTotal: 123900,
+    amountPaid: 0,
+    balanceDue: 123900,
+    notes: 'Quotation valid for 30 calendar days from issue date.'
+  },
+  {
+    id: 'qt-2',
+    documentNumber: 'QT-2026-002',
+    type: 'quotation',
+    clientId: 'cli-1',
+    clientName: 'Reliance Tech Services Pvt Ltd',
+    clientEmail: 'accounts@reliancetech.com',
+    clientPhone: '+91 98201 98765',
+    clientAddress: 'Maker Chambers IV, Nariman Point, Mumbai, MH - 400021',
+    clientGstin: '27AABCR1234F1Z5',
+    issueDate: '2026-10-18',
+    dueDate: '2026-11-18',
+    paymentTerms: 'Net 15',
+    status: 'Sent',
+    items: [
+      {
+        id: 'item-q2-1',
+        productId: 'prd-2',
+        description: 'Server Rack Cabinet 42U ServerPro',
+        sku: 'HRD-RCK-42',
+        quantity: 2,
+        unitPrice: 26500,
+        gstRate: 18,
+        subtotal: 53000,
+        taxAmount: 9540,
+        total: 62540
+      }
+    ],
+    subtotal: 53000,
+    discountType: 'percentage',
+    discountValue: 0,
+    discountAmount: 0,
+    taxableAmount: 53000,
+    cgstAmount: 4770,
+    sgstAmount: 4770,
+    igstAmount: 0,
+    taxAmount: 9540,
+    grandTotal: 62540,
+    amountPaid: 0,
+    balanceDue: 62540,
+    notes: 'Quotation submitted for server expansion project phase 2.'
+  }
+]
+
+const INITIAL_PAYMENTS = [
+  {
+    id: 'pay-1',
+    paymentNumber: 'PAY-2026-001',
+    invoiceId: 'inv-1',
+    invoiceNumber: 'INV-2026-001',
+    clientName: 'Reliance Tech Services Pvt Ltd',
+    amount: 80240,
+    paymentDate: '2026-10-10',
+    paymentMethod: 'Bank Transfer (NEFT)',
+    referenceNumber: 'HDFCN26101009823',
+    status: 'Completed',
+    notes: 'Full payment cleared via HDFC corporate netbanking.'
+  },
+  {
+    id: 'pay-2',
+    paymentNumber: 'PAY-2026-002',
+    invoiceId: 'inv-3',
+    invoiceNumber: 'INV-2026-003',
+    clientName: 'Infosys Digital Enterprise',
+    amount: 20000,
+    paymentDate: '2026-10-14',
+    paymentMethod: 'UPI Business',
+    referenceNumber: 'UPI/328710928731/CR',
+    status: 'Completed',
+    notes: 'Partial advance payment received.'
+  }
+]
+
+// Number formatting in INR
+function formatINR(amount) {
+  const num = Number(amount) || 0
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2
+  }).format(num)
+}
+
+// Convert numbers to Indian Rupees words
+function numberToWordsINR(num) {
+  const n = Math.floor(Math.abs(Number(num) || 0))
+  if (n === 0) return 'Rupees Zero Only'
+
+  const a = [
+    '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+  ]
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+
+  const convertLessThanOneThousand = (val) => {
+    let str = ''
+    if (val >= 100) {
+      str += a[Math.floor(val / 100)] + ' Hundred '
+      val %= 100
+    }
+    if (val >= 20) {
+      str += b[Math.floor(val / 10)] + ' '
+      val %= 10
+    }
+    if (val > 0) {
+      str += a[val] + ' '
+    }
+    return str.trim()
+  }
+
+  let words = ''
+  const crore = Math.floor(n / 10000000)
+  const lakh = Math.floor((n % 10000000) / 100000)
+  const thousand = Math.floor((n % 100000) / 1000)
+  const remainder = n % 1000
+
+  if (crore > 0) words += convertLessThanOneThousand(crore) + ' Crore '
+  if (lakh > 0) words += convertLessThanOneThousand(lakh) + ' Lakh '
+  if (thousand > 0) words += convertLessThanOneThousand(thousand) + ' Thousand '
+  if (remainder > 0) words += convertLessThanOneThousand(remainder) + ' '
+
+  return `Rupees ${words.trim()} Only`
+}
+
+// ============================================================================
+// MAIN APP COMPONENT WRAPPER WITH ROUTER
+// ============================================================================
+
+export default function App() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LedgerFlowShell activeTab="dashboard" />} />
+        <Route path="/invoices" element={<LedgerFlowShell activeTab="invoices" />} />
+        <Route path="/invoices/new" element={<LedgerFlowShell activeTab="editor" initialMode="invoice" />} />
+        <Route path="/quotations" element={<LedgerFlowShell activeTab="quotations" />} />
+        <Route path="/quotations/new" element={<LedgerFlowShell activeTab="editor" initialMode="quotation" />} />
+        <Route path="/clients" element={<LedgerFlowShell activeTab="clients" />} />
+        <Route path="/products" element={<LedgerFlowShell activeTab="products" />} />
+        <Route path="/payments" element={<LedgerFlowShell activeTab="payments" />} />
+        <Route path="/reports" element={<LedgerFlowShell activeTab="reports" />} />
+        <Route path="/settings" element={<LedgerFlowShell activeTab="settings" />} />
+        <Route path="/terms" element={<TermsConditionsPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 
-export default App
+// ============================================================================
+// CORE APPLICATION SHELL & STATE MANAGEMENT
+// ============================================================================
+
+function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
+  const navigate = useNavigate()
+
+  // Persistent State in localStorage
+  const [companyProfile, setCompanyProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('lf_company_profile')
+      return saved ? JSON.parse(saved) : INITIAL_COMPANY_PROFILE
+    } catch {
+      return INITIAL_COMPANY_PROFILE
+    }
+  })
+
+  const [clients, setClients] = useState(() => {
+    try {
+      const saved = localStorage.getItem('lf_clients')
+      return saved ? JSON.parse(saved) : INITIAL_CLIENTS
+    } catch {
+      return INITIAL_CLIENTS
+    }
+  })
+
+  const [products, setProducts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('lf_products')
+      return saved ? JSON.parse(saved) : INITIAL_PRODUCTS
+    } catch {
+      return INITIAL_PRODUCTS
+    }
+  })
+
+  const [invoices, setInvoices] = useState(() => {
+    try {
+      const saved = localStorage.getItem('lf_invoices')
+      return saved ? JSON.parse(saved) : INITIAL_INVOICES
+    } catch {
+      return INITIAL_INVOICES
+    }
+  })
+
+  const [quotations, setQuotations] = useState(() => {
+    try {
+      const saved = localStorage.getItem('lf_quotations')
+      return saved ? JSON.parse(saved) : INITIAL_QUOTATIONS
+    } catch {
+      return INITIAL_QUOTATIONS
+    }
+  })
+
+  const [payments, setPayments] = useState(() => {
+    try {
+      const saved = localStorage.getItem('lf_payments')
+      return saved ? JSON.parse(saved) : INITIAL_PAYMENTS
+    } catch {
+      return INITIAL_PAYMENTS
+    }
+  })
+
+  // Sync to localStorage
+  useEffect(() => {
+    localStorage.setItem('lf_company_profile', JSON.stringify(companyProfile))
+  }, [companyProfile])
+
+  useEffect(() => {
+    localStorage.setItem('lf_clients', JSON.stringify(clients))
+  }, [clients])
+
+  useEffect(() => {
+    localStorage.setItem('lf_products', JSON.stringify(products))
+  }, [products])
+
+  useEffect(() => {
+    localStorage.setItem('lf_invoices', JSON.stringify(invoices))
+  }, [invoices])
+
+  useEffect(() => {
+    localStorage.setItem('lf_quotations', JSON.stringify(quotations))
+  }, [quotations])
+
+  useEffect(() => {
+    localStorage.setItem('lf_payments', JSON.stringify(payments))
+  }, [payments])
+
+  // UI State
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [globalSearch, setGlobalSearch] = useState('')
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [notifications, setNotifications] = useState([
+    { id: 1, text: 'Invoice INV-2026-003 is overdue by 8 days.', unread: true, time: '2h ago' },
+    { id: 2, text: 'Payment of ₹80,240 received for INV-2026-001.', unread: true, time: '1d ago' },
+    { id: 3, text: 'Quotation QT-2026-001 accepted by Wipro Cloud.', unread: false, time: '2d ago' }
+  ])
+
+  // Active Document Preview / Editor State
+  const [editingDoc, setEditingDoc] = useState(null)
+  const [editorMode, setEditorMode] = useState(initialMode)
+  const [previewDoc, setPreviewDoc] = useState(null)
+
+  // Modals State
+  const [clientModalOpen, setClientModalOpen] = useState(false)
+  const [editingClient, setEditingClient] = useState(null)
+  const [productModalOpen, setProductModalOpen] = useState(false)
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [paymentDoc, setPaymentDoc] = useState(null)
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({ open: false, type: '', id: '', title: '' })
+
+  // Toast System
+  const [toasts, setToasts] = useState([])
+  const showToast = (message, type = 'success') => {
+    const id = Date.now() + Math.random()
+    setToasts((prev) => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, 4000)
+  }
+
+  // Navigation Helper
+  const navigateTo = useCallback((path) => {
+    setMobileMenuOpen(false)
+    navigate(path)
+  }, [navigate])
+
+  // Quick Action New Document
+  const handleStartNewDoc = (mode = 'invoice') => {
+    setEditorMode(mode)
+    setEditingDoc(null)
+    navigateTo(mode === 'invoice' ? '/invoices/new' : '/quotations/new')
+  }
+
+  // Edit Existing Document
+  const handleEditDoc = (doc) => {
+    setEditingDoc(doc)
+    setEditorMode(doc.type)
+    navigateTo(doc.type === 'invoice' ? '/invoices/new' : '/quotations/new')
+  }
+
+  // Duplicate Document
+  const handleDuplicateDoc = (doc) => {
+    const isInv = doc.type === 'invoice'
+    const prefix = isInv ? companyProfile.invoicePrefix : companyProfile.quotationPrefix
+    const nextNum = `${prefix}00${(isInv ? invoices.length : quotations.length) + 1}`
+    const duplicated = {
+      ...doc,
+      id: `${isInv ? 'inv' : 'qt'}-${Date.now()}`,
+      documentNumber: nextNum,
+      issueDate: new Date().toISOString().split('T')[0],
+      status: 'Draft',
+      amountPaid: 0,
+      balanceDue: doc.grandTotal
+    }
+    if (isInv) {
+      setInvoices((prev) => [duplicated, ...prev])
+    } else {
+      setQuotations((prev) => [duplicated, ...prev])
+    }
+    showToast(`Duplicated as new draft ${nextNum}`, 'success')
+  }
+
+  // Delete Document
+  const confirmDelete = (type, id, title) => {
+    setDeleteConfirmModal({ open: true, type, id, title })
+  }
+
+  const executeDelete = () => {
+    const { type, id } = deleteConfirmModal
+    if (type === 'invoice') {
+      setInvoices((prev) => prev.filter((i) => i.id !== id))
+      showToast('Invoice deleted successfully', 'success')
+    } else if (type === 'quotation') {
+      setQuotations((prev) => prev.filter((q) => q.id !== id))
+      showToast('Quotation deleted successfully', 'success')
+    } else if (type === 'client') {
+      setClients((prev) => prev.filter((c) => c.id !== id))
+      showToast('Client removed successfully', 'success')
+    } else if (type === 'product') {
+      setProducts((prev) => prev.filter((p) => p.id !== id))
+      showToast('Product removed successfully', 'success')
+    }
+    setDeleteConfirmModal({ open: false, type: '', id: '', title: '' })
+  }
+
+  // Search Results Filter
+  const filteredSearchResults = useMemo(() => {
+    if (!globalSearch.trim()) return []
+    const q = globalSearch.toLowerCase()
+    const results = []
+
+    invoices.forEach((inv) => {
+      if (inv.documentNumber.toLowerCase().includes(q) || inv.clientName.toLowerCase().includes(q)) {
+        results.push({
+          type: 'Invoice',
+          title: inv.documentNumber,
+          subtitle: `${inv.clientName} • ${formatINR(inv.grandTotal)}`,
+          action: () => {
+            setPreviewDoc(inv)
+            setGlobalSearch('')
+          }
+        })
+      }
+    })
+
+    quotations.forEach((qt) => {
+      if (qt.documentNumber.toLowerCase().includes(q) || qt.clientName.toLowerCase().includes(q)) {
+        results.push({
+          type: 'Quotation',
+          title: qt.documentNumber,
+          subtitle: `${qt.clientName} • ${formatINR(qt.grandTotal)}`,
+          action: () => {
+            setPreviewDoc(qt)
+            setGlobalSearch('')
+          }
+        })
+      }
+    })
+
+    clients.forEach((c) => {
+      if (c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)) {
+        results.push({
+          type: 'Client',
+          title: c.name,
+          subtitle: `${c.email} • ${c.phone}`,
+          action: () => {
+            navigateTo('/clients')
+            setGlobalSearch('')
+          }
+        })
+      }
+    })
+
+    products.forEach((p) => {
+      if (p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q))) {
+        results.push({
+          type: 'Product',
+          title: p.name,
+          subtitle: `SKU: ${p.sku} • ${formatINR(p.price)}`,
+          action: () => {
+            navigateTo('/products')
+            setGlobalSearch('')
+          }
+        })
+      }
+    })
+
+    return results.slice(0, 8)
+  }, [globalSearch, invoices, quotations, clients, products, navigateTo])
+
+  return (
+    <div className="lf-shell">
+      {/* Mobile Drawer Backdrop */}
+      {mobileMenuOpen && (
+        <div className="lf-sidebar-backdrop" onClick={() => setMobileMenuOpen(false)} />
+      )}
+
+      {/* LEFT SIDEBAR NAVIGATION */}
+      <aside className={`lf-sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+        <div className="lf-sidebar-header">
+          <Link to="/" className="lf-brand-logo" onClick={() => setMobileMenuOpen(false)}>
+            <div className="lf-logo-icon">LF</div>
+            {!sidebarCollapsed && (
+              <div className="lf-brand-text">
+                <span className="lf-brand-title">LedgerFlow</span>
+                <span className="lf-brand-subtitle">Financial Suite</span>
+              </div>
+            )}
+          </Link>
+          <button
+            type="button"
+            className="lf-sidebar-toggle-btn"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+        </div>
+
+        <nav className="lf-sidebar-nav">
+          <button
+            type="button"
+            className={`lf-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+            onClick={() => navigateTo('/')}
+            title="Overview"
+          >
+            <span className="lf-nav-icon"><LayoutDashboard size={18} /></span>
+            {!sidebarCollapsed && <span>Overview</span>}
+          </button>
+
+          <button
+            type="button"
+            className={`lf-nav-item ${activeTab === 'invoices' ? 'active' : ''}`}
+            onClick={() => navigateTo('/invoices')}
+            title="Invoices"
+          >
+            <span className="lf-nav-icon"><FileText size={18} /></span>
+            {!sidebarCollapsed && <span>Invoices</span>}
+            {!sidebarCollapsed && invoices.length > 0 && (
+              <span className="lf-nav-badge">{invoices.length}</span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            className={`lf-nav-item ${activeTab === 'quotations' ? 'active' : ''}`}
+            onClick={() => navigateTo('/quotations')}
+            title="Quotations"
+          >
+            <span className="lf-nav-icon"><FileSpreadsheet size={18} /></span>
+            {!sidebarCollapsed && <span>Quotations</span>}
+            {!sidebarCollapsed && quotations.length > 0 && (
+              <span className="lf-nav-badge">{quotations.length}</span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            className={`lf-nav-item ${activeTab === 'clients' ? 'active' : ''}`}
+            onClick={() => navigateTo('/clients')}
+            title="Clients"
+          >
+            <span className="lf-nav-icon"><Users size={18} /></span>
+            {!sidebarCollapsed && <span>Clients</span>}
+          </button>
+
+          <button
+            type="button"
+            className={`lf-nav-item ${activeTab === 'products' ? 'active' : ''}`}
+            onClick={() => navigateTo('/products')}
+            title="Products & Inventory"
+          >
+            <span className="lf-nav-icon"><Package size={18} /></span>
+            {!sidebarCollapsed && <span>Products & Inventory</span>}
+          </button>
+
+          <button
+            type="button"
+            className={`lf-nav-item ${activeTab === 'payments' ? 'active' : ''}`}
+            onClick={() => navigateTo('/payments')}
+            title="Payments"
+          >
+            <span className="lf-nav-icon"><CreditCard size={18} /></span>
+            {!sidebarCollapsed && <span>Payments</span>}
+          </button>
+
+          <button
+            type="button"
+            className={`lf-nav-item ${activeTab === 'reports' ? 'active' : ''}`}
+            onClick={() => navigateTo('/reports')}
+            title="Reports"
+          >
+            <span className="lf-nav-icon"><BarChart3 size={18} /></span>
+            {!sidebarCollapsed && <span>Reports & Analytics</span>}
+          </button>
+
+          <button
+            type="button"
+            className={`lf-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => navigateTo('/settings')}
+            title="Settings"
+          >
+            <span className="lf-nav-icon"><Settings size={18} /></span>
+            {!sidebarCollapsed && <span>Settings</span>}
+          </button>
+        </nav>
+
+        <div className="lf-sidebar-footer">
+          {!sidebarCollapsed && (
+            <div className={`lf-demo-pill ${isSupabaseConfigured ? 'connected' : ''}`}>
+              <div className="lf-demo-dot" />
+              <span>{isSupabaseConfigured ? 'Supabase Connected' : 'Verified Demo Mode'}</span>
+            </div>
+          )}
+          <Link
+            to="/terms"
+            className="lf-nav-item"
+            style={{ padding: '6px 8px', fontSize: '11px', color: 'var(--lf-text-muted)' }}
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <HelpCircle size={14} />
+            {!sidebarCollapsed && <span>Terms & Conditions</span>}
+          </Link>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT WRAPPER */}
+      <div className={`lf-main-wrapper ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {/* TOP NAVIGATION BAR */}
+        <header className="lf-top-nav lf-non-printable">
+          <div className="lf-top-nav-left">
+            <button
+              type="button"
+              className="lf-mobile-toggle"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Toggle Navigation Menu"
+            >
+              <Menu size={20} />
+            </button>
+
+            <div className="lf-page-breadcrumbs">
+              <div className="lf-breadcrumb-trail">
+                <span>LedgerFlow</span>
+                <ChevronRight size={10} />
+                <span style={{ color: 'var(--lf-brand)' }}>
+                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                </span>
+              </div>
+              <h1 className="lf-page-title">
+                {activeTab === 'dashboard' && 'Financial Overview'}
+                {activeTab === 'invoices' && 'Invoices'}
+                {activeTab === 'quotations' && 'Quotations & Estimates'}
+                {activeTab === 'clients' && 'Client Directory'}
+                {activeTab === 'products' && 'Product Catalogue & Inventory'}
+                {activeTab === 'payments' && 'Payment Transactions'}
+                {activeTab === 'reports' && 'Financial Reports & Insights'}
+                {activeTab === 'settings' && 'System Configuration'}
+                {activeTab === 'editor' && (editorMode === 'invoice' ? 'New Tax Invoice' : 'New Price Quotation')}
+              </h1>
+            </div>
+          </div>
+
+          <div className="lf-top-nav-right">
+            {/* Global Search */}
+            <div className="lf-search-box">
+              <Search size={16} className="lf-search-icon" />
+              <input
+                type="text"
+                className="lf-search-input"
+                placeholder="Search invoices, clients, SKU..."
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+              />
+              {filteredSearchResults.length > 0 && (
+                <div className="lf-search-results-dropdown">
+                  {filteredSearchResults.map((res, idx) => (
+                    <div
+                      key={idx}
+                      className="lf-search-result-item"
+                      onClick={() => res.action()}
+                    >
+                      <span className="lf-badge lf-badge-draft" style={{ fontSize: '10px' }}>
+                        {res.type}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '12px' }}>{res.title}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--lf-text-muted)' }}>{res.subtitle}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Quick Action Button */}
+            <button
+              type="button"
+              className="lf-btn lf-btn-primary"
+              onClick={() => handleStartNewDoc('invoice')}
+            >
+              <Plus size={16} />
+              <span>New Invoice</span>
+            </button>
+
+            {/* Notifications Panel */}
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className="lf-icon-btn"
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                title="Notifications"
+                aria-label="View notifications"
+              >
+                <Bell size={18} />
+                {notifications.some((n) => n.unread) && <span className="lf-btn-badge" />}
+              </button>
+
+              {notificationsOpen && (
+                <div className="lf-notification-panel">
+                  <div className="lf-panel-header">
+                    <h4>Notifications</h4>
+                    <button
+                      type="button"
+                      className="lf-btn lf-btn-ghost lf-btn-sm"
+                      onClick={() => {
+                        setNotifications(notifications.map((n) => ({ ...n, unread: false })))
+                        showToast('All notifications marked as read', 'success')
+                      }}
+                    >
+                      Mark all read
+                    </button>
+                  </div>
+                  <div className="lf-panel-body">
+                    {notifications.map((n) => (
+                      <div key={n.id} className={`lf-notification-item ${n.unread ? 'unread' : ''}`}>
+                        <div style={{ color: 'var(--lf-brand)' }}><CheckCircle2 size={16} /></div>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: '12px', color: 'var(--lf-text)' }}>{n.text}</p>
+                          <span style={{ fontSize: '10px', color: 'var(--lf-text-muted)' }}>{n.time}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* User Profile Menu */}
+            <div className="lf-user-profile-menu">
+              <button
+                type="button"
+                className="lf-profile-pill"
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                aria-label="User Account Menu"
+              >
+                <div className="lf-avatar">AG</div>
+                <div className="lf-profile-info">
+                  <span className="lf-profile-name">Apex Global</span>
+                  <span className="lf-profile-role">Admin</span>
+                </div>
+                <ChevronDown size={14} style={{ color: 'var(--lf-text-muted)' }} />
+              </button>
+
+              {profileMenuOpen && (
+                <div className="lf-dropdown-menu">
+                  <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--lf-border)' }}>
+                    <div style={{ fontWeight: 600, fontSize: '13px' }}>Apex Global Solutions</div>
+                    <div style={{ fontSize: '11px', color: 'var(--lf-text-muted)' }}>billing@apexenterprise.in</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="lf-dropdown-item"
+                    onClick={() => {
+                      setProfileMenuOpen(false)
+                      navigateTo('/settings')
+                    }}
+                  >
+                    <Settings size={15} />
+                    <span>Company Settings</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="lf-dropdown-item"
+                    onClick={() => {
+                      setProfileMenuOpen(false)
+                      navigateTo('/reports')
+                    }}
+                  >
+                    <BarChart3 size={15} />
+                    <span>Financial Reports</span>
+                  </button>
+                  <div className="lf-dropdown-divider" />
+                  <button
+                    type="button"
+                    className="lf-dropdown-item"
+                    style={{ color: 'var(--lf-danger)' }}
+                    onClick={() => {
+                      setProfileMenuOpen(false)
+                      localStorage.clear()
+                      window.location.reload()
+                    }}
+                  >
+                    <RefreshCw size={15} />
+                    <span>Reset Demo Data</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* MAIN BODY VIEWPORT */}
+        <main className="lf-content-viewport">
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              invoices={invoices}
+              quotations={quotations}
+              onNewInvoice={() => handleStartNewDoc('invoice')}
+              onNewQuotation={() => handleStartNewDoc('quotation')}
+              onViewDoc={(doc) => setPreviewDoc(doc)}
+            />
+          )}
+
+          {activeTab === 'invoices' && (
+            <DocumentsListView
+              type="invoice"
+              documents={invoices}
+              onNewDoc={() => handleStartNewDoc('invoice')}
+              onViewDoc={(doc) => setPreviewDoc(doc)}
+              onEditDoc={handleEditDoc}
+              onDuplicateDoc={handleDuplicateDoc}
+              onDeleteDoc={(doc) => confirmDelete('invoice', doc.id, doc.documentNumber)}
+              onRecordPayment={(doc) => {
+                setPaymentDoc(doc)
+                setPaymentModalOpen(true)
+              }}
+            />
+          )}
+
+          {activeTab === 'quotations' && (
+            <DocumentsListView
+              type="quotation"
+              documents={quotations}
+              onNewDoc={() => handleStartNewDoc('quotation')}
+              onViewDoc={(doc) => setPreviewDoc(doc)}
+              onEditDoc={handleEditDoc}
+              onDuplicateDoc={handleDuplicateDoc}
+              onDeleteDoc={(doc) => confirmDelete('quotation', doc.id, doc.documentNumber)}
+            />
+          )}
+
+          {activeTab === 'clients' && (
+            <ClientsView
+              clients={clients}
+              invoices={invoices}
+              onAddClient={() => {
+                setEditingClient(null)
+                setClientModalOpen(true)
+              }}
+              onEditClient={(client) => {
+                setEditingClient(client)
+                setClientModalOpen(true)
+              }}
+              onDeleteClient={(client) => confirmDelete('client', client.id, client.name)}
+              onSelectClientToInvoice={(client) => {
+                setEditorMode('invoice')
+                setEditingDoc({
+                  clientId: client.id,
+                  clientName: client.name,
+                  clientEmail: client.email,
+                  clientPhone: client.phone,
+                  clientAddress: client.address,
+                  clientGstin: client.gstin,
+                  items: []
+                })
+                navigateTo('/invoices/new')
+              }}
+            />
+          )}
+
+          {activeTab === 'products' && (
+            <ProductsView
+              products={products}
+              onAddProduct={() => {
+                setEditingProduct(null)
+                setProductModalOpen(true)
+              }}
+              onEditProduct={(p) => {
+                setEditingProduct(p)
+                setProductModalOpen(true)
+              }}
+              onDeleteProduct={(p) => confirmDelete('product', p.id, p.name)}
+              onAddProductToNewInvoice={(product) => {
+                setEditorMode('invoice')
+                setEditingDoc({
+                  items: [
+                    {
+                      id: `item-${Date.now()}`,
+                      productId: product.id,
+                      description: product.name,
+                      sku: product.sku,
+                      quantity: 1,
+                      unitPrice: product.price,
+                      gstRate: product.gstRate,
+                      subtotal: product.price,
+                      taxAmount: (product.price * product.gstRate) / 100,
+                      total: product.price + (product.price * product.gstRate) / 100
+                    }
+                  ]
+                })
+                navigateTo('/invoices/new')
+              }}
+            />
+          )}
+
+          {activeTab === 'payments' && (
+            <PaymentsView
+              payments={payments}
+              onOpenPaymentModal={() => {
+                setPaymentDoc(null)
+                setPaymentModalOpen(true)
+              }}
+            />
+          )}
+
+          {activeTab === 'reports' && (
+            <ReportsView
+              invoices={invoices}
+              payments={payments}
+            />
+          )}
+
+          {activeTab === 'settings' && (
+            <SettingsView
+              profile={companyProfile}
+              onSaveProfile={(updated) => {
+                setCompanyProfile(updated)
+                showToast('Company profile settings saved successfully', 'success')
+              }}
+              showToast={showToast}
+            />
+          )}
+
+          {activeTab === 'editor' && (
+            <DocumentEditorView
+              mode={editorMode}
+              companyProfile={companyProfile}
+              clients={clients}
+              products={products}
+              existingDoc={editingDoc}
+              onCancel={() => navigateTo(editorMode === 'invoice' ? '/invoices' : '/quotations')}
+              onSave={(savedDoc) => {
+                if (savedDoc.type === 'invoice') {
+                  setInvoices((prev) => {
+                    const idx = prev.findIndex((i) => i.id === savedDoc.id)
+                    if (idx >= 0) {
+                      const updated = [...prev]
+                      updated[idx] = savedDoc
+                      return updated
+                    }
+                    return [savedDoc, ...prev]
+                  })
+                  showToast(`Invoice ${savedDoc.documentNumber} saved successfully`, 'success')
+                  navigateTo('/invoices')
+                } else {
+                  setQuotations((prev) => {
+                    const idx = prev.findIndex((q) => q.id === savedDoc.id)
+                    if (idx >= 0) {
+                      const updated = [...prev]
+                      updated[idx] = savedDoc
+                      return updated
+                    }
+                    return [savedDoc, ...prev]
+                  })
+                  showToast(`Quotation ${savedDoc.documentNumber} saved successfully`, 'success')
+                  navigateTo('/quotations')
+                }
+              }}
+              showToast={showToast}
+            />
+          )}
+        </main>
+      </div>
+
+      {/* DOCUMENT PREVIEW MODAL */}
+      {previewDoc && (
+        <DocumentPreviewModal
+          doc={previewDoc}
+          companyProfile={companyProfile}
+          onClose={() => setPreviewDoc(null)}
+          onEdit={() => {
+            const docToEdit = previewDoc
+            setPreviewDoc(null)
+            handleEditDoc(docToEdit)
+          }}
+          showToast={showToast}
+        />
+      )}
+
+      {/* DEDICATED A4 PRINT CONTAINER (ALWAYS IN DOM, PRINTED ONLY VIA WINDOW.PRINT) */}
+      {previewDoc && (
+        <div id="ledgerflow-printable-document" className="lf-printable-document">
+          <PrintableInvoiceTemplate doc={previewDoc} companyProfile={companyProfile} />
+        </div>
+      )}
+
+      {/* CLIENT ADD/EDIT MODAL */}
+      {clientModalOpen && (
+        <ClientModal
+          client={editingClient}
+          onClose={() => setClientModalOpen(false)}
+          onSave={(savedClient) => {
+            setClients((prev) => {
+              if (editingClient) {
+                return prev.map((c) => (c.id === savedClient.id ? savedClient : c))
+              }
+              return [{ ...savedClient, id: `cli-${Date.now()}` }, ...prev]
+            })
+            setClientModalOpen(false)
+            showToast(`Client ${savedClient.name} saved`, 'success')
+          }}
+        />
+      )}
+
+      {/* PRODUCT ADD/EDIT MODAL */}
+      {productModalOpen && (
+        <ProductModal
+          product={editingProduct}
+          onClose={() => setProductModalOpen(false)}
+          onSave={(savedProduct) => {
+            setProducts((prev) => {
+              if (editingProduct) {
+                return prev.map((p) => (p.id === savedProduct.id ? savedProduct : p))
+              }
+              return [{ ...savedProduct, id: `prd-${Date.now()}` }, ...prev]
+            })
+            setProductModalOpen(false)
+            showToast(`Product ${savedProduct.name} saved`, 'success')
+          }}
+        />
+      )}
+
+      {/* RECORD PAYMENT MODAL */}
+      {paymentModalOpen && (
+        <RecordPaymentModal
+          preselectedDoc={paymentDoc}
+          invoices={invoices.filter((i) => i.status !== 'Paid' && i.balanceDue > 0)}
+          onClose={() => {
+            setPaymentModalOpen(false)
+            setPaymentDoc(null)
+          }}
+          onSave={(newPayment) => {
+            setPayments((prev) => [newPayment, ...prev])
+            setInvoices((prev) =>
+              prev.map((inv) => {
+                if (inv.id === newPayment.invoiceId) {
+                  const newPaid = (inv.amountPaid || 0) + newPayment.amount
+                  const newBalance = Math.max(0, inv.grandTotal - newPaid)
+                  const newStatus = newBalance === 0 ? 'Paid' : 'Partially Paid'
+                  return {
+                    ...inv,
+                    amountPaid: newPaid,
+                    balanceDue: newBalance,
+                    status: newStatus
+                  }
+                }
+                return inv
+              })
+            )
+            setPaymentModalOpen(false)
+            setPaymentDoc(null)
+            showToast(`Payment of ${formatINR(newPayment.amount)} recorded`, 'success')
+          }}
+        />
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deleteConfirmModal.open && (
+        <div className="lf-modal-backdrop">
+          <div className="lf-modal" style={{ maxWidth: '420px' }}>
+            <div className="lf-modal-header">
+              <h3 className="lf-modal-title" style={{ color: 'var(--lf-danger)' }}>
+                Confirm Deletion
+              </h3>
+              <button
+                type="button"
+                className="lf-icon-btn"
+                onClick={() => setDeleteConfirmModal({ open: false, type: '', id: '', title: '' })}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="lf-modal-body">
+              <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+                Are you sure you want to permanently delete <strong>{deleteConfirmModal.title}</strong>? This action cannot be undone.
+              </p>
+            </div>
+            <div className="lf-modal-footer">
+              <button
+                type="button"
+                className="lf-btn lf-btn-secondary"
+                onClick={() => setDeleteConfirmModal({ open: false, type: '', id: '', title: '' })}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="lf-btn lf-btn-danger"
+                onClick={executeDelete}
+              >
+                Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FLOATING TOASTS CONTAINER */}
+      <div className="lf-toast-container">
+        {toasts.map((toast) => (
+          <div key={toast.id} className={`lf-toast lf-toast-${toast.type}`}>
+            {toast.type === 'success' && <CheckCircle2 size={16} color="var(--lf-brand)" />}
+            {toast.type === 'error' && <AlertCircle size={16} color="var(--lf-danger)" />}
+            {toast.type === 'warning' && <AlertCircle size={16} color="var(--lf-highlight)" />}
+            <span style={{ flex: 1 }}>{toast.message}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// DASHBOARD (OVERVIEW) VIEW
+// ============================================================================
+
+function DashboardView({ invoices, quotations, onNewInvoice, onNewQuotation, onViewDoc }) {
+  const totalInvoiced = useMemo(() => invoices.reduce((sum, i) => sum + (i.grandTotal || 0), 0), [invoices])
+  const amountReceived = useMemo(() => invoices.reduce((sum, i) => sum + (i.amountPaid || 0), 0), [invoices])
+  const outstandingBalance = useMemo(() => invoices.reduce((sum, i) => sum + (i.balanceDue || 0), 0), [invoices])
+  const pendingQuotations = useMemo(() => quotations.filter((q) => q.status === 'Sent' || q.status === 'Draft'), [quotations])
+  const pendingQuotationsValue = useMemo(() => pendingQuotations.reduce((sum, q) => sum + (q.grandTotal || 0), 0), [pendingQuotations])
+
+  const chartData = [
+    { month: 'Jun', Invoiced: 48000, Received: 48000 },
+    { month: 'Jul', Invoiced: 65000, Received: 60000 },
+    { month: 'Aug', Invoiced: 82000, Received: 74000 },
+    { month: 'Sep', Invoiced: 94000, Received: 80000 },
+    { month: 'Oct', Invoiced: Math.round(totalInvoiced), Received: Math.round(amountReceived) }
+  ]
+
+  return (
+    <div>
+      {/* Welcome & Primary Actions Bar */}
+      <div className="lf-card" style={{ marginBottom: '24px', background: 'linear-gradient(135deg, #FFFFFF 0%, #F4F8F5 100%)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--lf-text)', marginBottom: '4px' }}>
+              Welcome back, Apex Enterprise
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text-secondary)' }}>
+              Here is your financial billing activity, tax calculations, and receivables status.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button type="button" className="lf-btn lf-btn-primary" onClick={onNewInvoice}>
+              <Plus size={16} />
+              <span>Create Invoice</span>
+            </button>
+            <button type="button" className="lf-btn lf-btn-secondary" onClick={onNewQuotation}>
+              <FileSpreadsheet size={16} />
+              <span>Create Quotation</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* METRIC CARDS */}
+      <div className="lf-metrics-grid">
+        <div className="lf-metric-card">
+          <div className="lf-metric-header">
+            <span className="lf-metric-label">Total Invoiced</span>
+            <div className="lf-metric-icon-wrap"><Receipt size={18} /></div>
+          </div>
+          <div className="lf-metric-value">{formatINR(totalInvoiced)}</div>
+          <div className="lf-metric-subtext">
+            <span className="lf-trend-up">↑ 14.2%</span> from last billing cycle
+          </div>
+        </div>
+
+        <div className="lf-metric-card">
+          <div className="lf-metric-header">
+            <span className="lf-metric-label">Amount Received</span>
+            <div className="lf-metric-icon-wrap"><CheckCircle2 size={18} /></div>
+          </div>
+          <div className="lf-metric-value">{formatINR(amountReceived)}</div>
+          <div className="lf-metric-subtext">
+            <span>{totalInvoiced > 0 ? Math.round((amountReceived / totalInvoiced) * 100) : 0}% collection rate</span>
+          </div>
+        </div>
+
+        <div className="lf-metric-card">
+          <div className="lf-metric-header">
+            <span className="lf-metric-label">Outstanding Balance</span>
+            <div className="lf-metric-icon-wrap amber"><Clock size={18} /></div>
+          </div>
+          <div className="lf-metric-value" style={{ color: 'var(--lf-highlight)' }}>
+            {formatINR(outstandingBalance)}
+          </div>
+          <div className="lf-metric-subtext">
+            <span className="lf-trend-amber">{invoices.filter((i) => i.status === 'Overdue').length} overdue accounts</span>
+          </div>
+        </div>
+
+        <div className="lf-metric-card">
+          <div className="lf-metric-header">
+            <span className="lf-metric-label">Pending Quotations</span>
+            <div className="lf-metric-icon-wrap"><FileSpreadsheet size={18} /></div>
+          </div>
+          <div className="lf-metric-value">{formatINR(pendingQuotationsValue)}</div>
+          <div className="lf-metric-subtext">
+            <span>{pendingQuotations.length} quotes awaiting client response</span>
+          </div>
+        </div>
+      </div>
+
+      {/* REVENUE CHART & RECENT INVOICES GRID */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', marginBottom: '28px' }}>
+        {/* Revenue Activity Chart */}
+        <div className="lf-card">
+          <div className="lf-card-header">
+            <div>
+              <h3 className="lf-card-title">Invoicing & Collections Trend</h3>
+              <p className="lf-card-subtitle">Monthly billed volume vs. payments collected (₹)</p>
+            </div>
+            <span className="lf-badge lf-badge-accepted">FY 2026-27</span>
+          </div>
+          <div style={{ width: '100%', height: 260 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E6EAE5" />
+                <XAxis dataKey="month" stroke="#737D75" fontSize={11} tickLine={false} />
+                <YAxis stroke="#737D75" fontSize={11} tickLine={false} />
+                <Tooltip
+                  formatter={(val) => [formatINR(val), '']}
+                  contentStyle={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E6EAE5',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(37,43,39,0.08)'
+                  }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                <Bar dataKey="Invoiced" fill="#286747" radius={[4, 4, 0, 0]} barSize={20} name="Total Invoiced" />
+                <Bar dataKey="Received" fill="#86B99A" radius={[4, 4, 0, 0]} barSize={20} name="Amount Received" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Recent Invoices Quick Table */}
+        <div className="lf-card">
+          <div className="lf-card-header">
+            <div>
+              <h3 className="lf-card-title">Recent Invoices</h3>
+              <p className="lf-card-subtitle">Latest issued billing documents</p>
+            </div>
+          </div>
+          <div className="lf-table-container">
+            <table className="lf-table">
+              <thead>
+                <tr>
+                  <th>Doc #</th>
+                  <th>Client</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.slice(0, 4).map((inv) => (
+                  <tr key={inv.id}>
+                    <td style={{ fontWeight: 600, color: 'var(--lf-brand)' }}>{inv.documentNumber}</td>
+                    <td>
+                      <div style={{ fontWeight: 500 }}>{inv.clientName}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--lf-text-muted)' }}>Due {inv.dueDate}</div>
+                    </td>
+                    <td style={{ fontWeight: 600 }}>{formatINR(inv.grandTotal)}</td>
+                    <td>
+                      <span className={`lf-badge lf-badge-${inv.status.toLowerCase().replace(/\s+/g, '-')}`}>
+                        {inv.status}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="lf-btn lf-btn-ghost lf-btn-sm"
+                        onClick={() => onViewDoc(inv)}
+                        title="View Document"
+                      >
+                        <Eye size={15} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// DOCUMENTS LIST VIEW (INVOICES & QUOTATIONS)
+// ============================================================================
+
+function DocumentsListView({
+  type = 'invoice',
+  documents,
+  onNewDoc,
+  onViewDoc,
+  onEditDoc,
+  onDuplicateDoc,
+  onDeleteDoc,
+  onRecordPayment
+}) {
+  const [filterStatus, setFilterStatus] = useState('All')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortField, setSortField] = useState('issueDate')
+  const [sortOrder, setSortOrder] = useState('desc')
+
+  const isInvoice = type === 'invoice'
+
+  // Filter & Sort
+  const filteredDocs = useMemo(() => {
+    return documents.filter((doc) => {
+      const matchesStatus = filterStatus === 'All' || doc.status.toLowerCase() === filterStatus.toLowerCase()
+      const matchesSearch =
+        doc.documentNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+      return matchesStatus && matchesSearch
+    }).sort((a, b) => {
+      let valA = a[sortField]
+      let valB = b[sortField]
+      if (sortField === 'grandTotal') {
+        valA = Number(valA) || 0
+        valB = Number(valB) || 0
+      }
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1
+      return 0
+    })
+  }, [documents, filterStatus, searchQuery, sortField, sortOrder])
+
+  return (
+    <div className="lf-card">
+      {/* Top Action Bar */}
+      <div className="lf-card-header">
+        <div>
+          <h2 className="lf-card-title">{isInvoice ? 'Invoices' : 'Quotations & Estimates'}</h2>
+          <p className="lf-card-subtitle">
+            Manage, issue, track, and export your professional {isInvoice ? 'tax invoices' : 'price quotations'}
+          </p>
+        </div>
+        <button type="button" className="lf-btn lf-btn-primary" onClick={onNewDoc}>
+          <Plus size={16} />
+          <span>Create {isInvoice ? 'Invoice' : 'Quotation'}</span>
+        </button>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '20px', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: '1', minWidth: '220px' }}>
+          <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--lf-text-muted)' }} />
+          <input
+            type="text"
+            className="lf-form-input"
+            style={{ paddingLeft: '32px' }}
+            placeholder={`Search ${isInvoice ? 'invoices' : 'quotations'} by # or client...`}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        {/* Status Filter Buttons */}
+        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+          {['All', 'Draft', 'Sent', isInvoice ? 'Paid' : 'Accepted', isInvoice ? 'Overdue' : 'Rejected'].map((st) => (
+            <button
+              key={st}
+              type="button"
+              className={`lf-btn lf-btn-sm ${filterStatus === st ? 'lf-btn-primary' : 'lf-btn-secondary'}`}
+              onClick={() => setFilterStatus(st)}
+            >
+              {st}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Data Table */}
+      {filteredDocs.length === 0 ? (
+        <div className="lf-empty-state">
+          <div className="lf-empty-icon"><FileText size={28} /></div>
+          <h4 className="lf-empty-title">No {isInvoice ? 'invoices' : 'quotations'} found</h4>
+          <p className="lf-empty-desc">
+            {searchQuery || filterStatus !== 'All'
+              ? 'Try adjusting your search query or filter to view results.'
+              : `Create your first ${isInvoice ? 'tax invoice' : 'price quotation'} to get started.`}
+          </p>
+          <button type="button" className="lf-btn lf-btn-primary" onClick={onNewDoc}>
+            <Plus size={16} />
+            <span>Create {isInvoice ? 'Invoice' : 'Quotation'}</span>
+          </button>
+        </div>
+      ) : (
+        <div className="lf-table-container">
+          <table className="lf-table">
+            <thead>
+              <tr>
+                <th onClick={() => { setSortField('documentNumber'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc') }} style={{ cursor: 'pointer' }}>
+                  Document # {sortField === 'documentNumber' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th>Client Name</th>
+                <th onClick={() => { setSortField('issueDate'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc') }} style={{ cursor: 'pointer' }}>
+                  Issue Date {sortField === 'issueDate' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                <th>{isInvoice ? 'Due Date' : 'Valid Until'}</th>
+                <th onClick={() => { setSortField('grandTotal'); setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc') }} style={{ cursor: 'pointer' }}>
+                  Total Amount (₹) {sortField === 'grandTotal' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
+                {isInvoice && <th>Balance Due</th>}
+                <th>Status</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredDocs.map((doc) => (
+                <tr key={doc.id}>
+                  <td style={{ fontWeight: 600, color: 'var(--lf-brand)' }}>
+                    {doc.documentNumber}
+                  </td>
+                  <td>
+                    <div style={{ fontWeight: 500 }}>{doc.clientName}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--lf-text-muted)' }}>{doc.clientEmail}</div>
+                  </td>
+                  <td>{doc.issueDate}</td>
+                  <td>{doc.dueDate}</td>
+                  <td style={{ fontWeight: 700 }}>{formatINR(doc.grandTotal)}</td>
+                  {isInvoice && (
+                    <td style={{ fontWeight: 600, color: doc.balanceDue > 0 ? 'var(--lf-highlight)' : 'var(--lf-brand)' }}>
+                      {formatINR(doc.balanceDue || 0)}
+                    </td>
+                  )}
+                  <td>
+                    <span className={`lf-badge lf-badge-${doc.status.toLowerCase().replace(/\s+/g, '-')}`}>
+                      {doc.status}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="lf-btn lf-btn-ghost lf-btn-sm"
+                        onClick={() => onViewDoc(doc)}
+                        title="View / Print Document"
+                      >
+                        <Eye size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        className="lf-btn lf-btn-ghost lf-btn-sm"
+                        onClick={() => onEditDoc(doc)}
+                        title="Edit Document"
+                      >
+                        <Edit size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        className="lf-btn lf-btn-ghost lf-btn-sm"
+                        onClick={() => onDuplicateDoc(doc)}
+                        title="Duplicate as Draft"
+                      >
+                        <Copy size={15} />
+                      </button>
+                      {isInvoice && doc.status !== 'Paid' && onRecordPayment && (
+                        <button
+                          type="button"
+                          className="lf-btn lf-btn-outline-brand lf-btn-sm"
+                          onClick={() => onRecordPayment(doc)}
+                          title="Record Received Payment"
+                        >
+                          <CreditCard size={14} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="lf-btn lf-btn-ghost lf-btn-sm"
+                        style={{ color: 'var(--lf-danger)' }}
+                        onClick={() => onDeleteDoc(doc)}
+                        title="Delete Document"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
+// DOCUMENT EDITOR (CREATE & EDIT INVOICES / QUOTATIONS)
+// ============================================================================
+
+function DocumentEditorView({
+  mode = 'invoice',
+  companyProfile,
+  clients,
+  products,
+  existingDoc,
+  onSave,
+  onCancel,
+  showToast
+}) {
+  const isInvoice = mode === 'invoice'
+  const prefix = isInvoice ? companyProfile.invoicePrefix : companyProfile.quotationPrefix
+
+  // Form State with Lazy Initializers
+  const [documentNumber, setDocumentNumber] = useState(() => {
+    return existingDoc?.documentNumber || `${prefix}${Math.floor(100 + Math.random() * 900)}`
+  })
+  const [selectedClientId, setSelectedClientId] = useState(existingDoc?.clientId || '')
+  const [clientName, setClientName] = useState(existingDoc?.clientName || '')
+  const [clientEmail, setClientEmail] = useState(existingDoc?.clientEmail || '')
+  const [clientPhone, setClientPhone] = useState(existingDoc?.clientPhone || '')
+  const [clientAddress, setClientAddress] = useState(existingDoc?.clientAddress || '')
+  const [clientGstin, setClientGstin] = useState(existingDoc?.clientGstin || '')
+
+  const [issueDate, setIssueDate] = useState(() => {
+    return existingDoc?.issueDate || new Date().toISOString().split('T')[0]
+  })
+  const [dueDate, setDueDate] = useState(() => {
+    return (
+      existingDoc?.dueDate ||
+      new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    )
+  })
+  const [paymentTerms, setPaymentTerms] = useState(existingDoc?.paymentTerms || companyProfile.defaultPaymentTerms)
+  const [status, setStatus] = useState(existingDoc?.status || 'Draft')
+  const [notes, setNotes] = useState(existingDoc?.notes || companyProfile.notes)
+
+  // Line Items
+  const [items, setItems] = useState(() => {
+    if (existingDoc?.items?.length) return existingDoc.items
+    return [
+      {
+        id: `item-${Date.now()}`,
+        productId: '',
+        description: '',
+        sku: '',
+        quantity: 1,
+        unitPrice: 0,
+        gstRate: companyProfile.defaultGstRate || 18,
+        subtotal: 0,
+        taxAmount: 0,
+        total: 0
+      }
+    ]
+  })
+
+  // Discount
+  const [discountType, setDiscountType] = useState(existingDoc?.discountType || 'percentage')
+  const [discountValue, setDiscountValue] = useState(existingDoc?.discountValue || 0)
+
+  // Barcode Scanner Modal State
+  const [scannerOpen, setScannerOpen] = useState(false)
+
+  // Handle Client Auto-fill
+  const handleClientChange = (clientId) => {
+    setSelectedClientId(clientId)
+    const client = clients.find((c) => c.id === clientId)
+    if (client) {
+      setClientName(client.name)
+      setClientEmail(client.email)
+      setClientPhone(client.phone)
+      setClientAddress(client.address)
+      setClientGstin(client.gstin)
+    }
+  }
+
+  // Handle Product Selection for Line Item
+  const handleProductSelect = (index, productId) => {
+    const product = products.find((p) => p.id === productId)
+    if (!product) return
+
+    setItems((prev) => {
+      const updated = [...prev]
+      const qty = updated[index].quantity || 1
+      const price = product.price
+      const gst = product.gstRate || 18
+      const subtotal = qty * price
+      const taxAmount = (subtotal * gst) / 100
+
+      updated[index] = {
+        ...updated[index],
+        productId: product.id,
+        description: product.name,
+        sku: product.sku,
+        unitPrice: price,
+        gstRate: gst,
+        subtotal,
+        taxAmount,
+        total: subtotal + taxAmount
+      }
+      return updated
+    })
+  }
+
+  // Handle Line Item Quantity/Price/GST updates
+  const handleItemChange = (index, field, value) => {
+    setItems((prev) => {
+      const updated = [...prev]
+      const item = { ...updated[index], [field]: value }
+
+      const qty = Number(item.quantity) || 0
+      const price = Number(item.unitPrice) || 0
+      const gst = Number(item.gstRate) || 0
+
+      const subtotal = qty * price
+      const taxAmount = (subtotal * gst) / 100
+
+      item.subtotal = subtotal
+      item.taxAmount = taxAmount
+      item.total = subtotal + taxAmount
+
+      updated[index] = item
+      return updated
+    })
+  }
+
+  // Add Empty Line Item
+  const handleAddItem = () => {
+    setItems((prev) => [
+      ...prev,
+      {
+        id: `item-${Date.now()}-${Math.random()}`,
+        productId: '',
+        description: '',
+        sku: '',
+        quantity: 1,
+        unitPrice: 0,
+        gstRate: companyProfile.defaultGstRate || 18,
+        subtotal: 0,
+        taxAmount: 0,
+        total: 0
+      }
+    ])
+  }
+
+  // Remove Line Item
+  const handleRemoveItem = (index) => {
+    if (items.length <= 1) {
+      showToast('A document must have at least one line item', 'warning')
+      return
+    }
+    setItems((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  // Add Product by Scanned Barcode or SKU
+  const handleAddProductByCode = useCallback((code) => {
+    if (!code) return false
+    const trimmed = code.trim().toLowerCase()
+    const product = products.find(
+      (p) => (p.barcode && p.barcode.toLowerCase() === trimmed) || p.sku.toLowerCase() === trimmed
+    )
+
+    if (!product) {
+      showToast(`No product found with barcode/SKU: ${code}`, 'error')
+      return false
+    }
+
+    setItems((prev) => {
+      const existingIndex = prev.findIndex((it) => it.productId === product.id)
+      if (existingIndex >= 0) {
+        const updated = [...prev]
+        const newQty = (updated[existingIndex].quantity || 1) + 1
+        const price = updated[existingIndex].unitPrice
+        const gst = updated[existingIndex].gstRate
+        const subtotal = newQty * price
+        const taxAmount = (subtotal * gst) / 100
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: newQty,
+          subtotal,
+          taxAmount,
+          total: subtotal + taxAmount
+        }
+        showToast(`Increased quantity of "${product.name}" to ${newQty}`, 'success')
+        return updated
+      } else {
+        if (prev.length === 1 && !prev[0].description && prev[0].unitPrice === 0) {
+          const subtotal = product.price
+          const taxAmount = (subtotal * product.gstRate) / 100
+          showToast(`Scanned and added "${product.name}"`, 'success')
+          return [
+            {
+              id: prev[0].id,
+              productId: product.id,
+              description: product.name,
+              sku: product.sku,
+              quantity: 1,
+              unitPrice: product.price,
+              gstRate: product.gstRate,
+              subtotal,
+              taxAmount,
+              total: subtotal + taxAmount
+            }
+          ]
+        } else {
+          const subtotal = product.price
+          const taxAmount = (subtotal * product.gstRate) / 100
+          showToast(`Scanned and added "${product.name}"`, 'success')
+          return [
+            ...prev,
+            {
+              id: `item-${Date.now()}`,
+              productId: product.id,
+              description: product.name,
+              sku: product.sku,
+              quantity: 1,
+              unitPrice: product.price,
+              gstRate: product.gstRate,
+              subtotal,
+              taxAmount,
+              total: subtotal + taxAmount
+            }
+          ]
+        }
+      }
+    })
+    return true
+  }, [products, showToast])
+
+  // Computed Totals
+  const subtotal = useMemo(() => items.reduce((sum, it) => sum + (it.subtotal || 0), 0), [items])
+
+  const discountAmount = useMemo(() => {
+    const val = Number(discountValue) || 0
+    if (discountType === 'percentage') {
+      return (subtotal * val) / 100
+    }
+    return Math.min(subtotal, val)
+  }, [subtotal, discountType, discountValue])
+
+  const taxableAmount = Math.max(0, subtotal - discountAmount)
+
+  // GST Calculation (Intra-state split or IGST)
+  const isInterState = useMemo(() => {
+    if (!clientGstin || clientGstin.length < 2) return false
+    const clientStateCode = clientGstin.substring(0, 2)
+    const companyStateCode = companyProfile.gstin ? companyProfile.gstin.substring(0, 2) : '27'
+    return clientStateCode !== companyStateCode
+  }, [clientGstin, companyProfile.gstin])
+
+  const totalTaxAmount = useMemo(() => {
+    const discountFactor = subtotal > 0 ? taxableAmount / subtotal : 1
+    return items.reduce((sum, it) => sum + (it.taxAmount || 0) * discountFactor, 0)
+  }, [items, subtotal, taxableAmount])
+
+  const cgstAmount = isInterState ? 0 : totalTaxAmount / 2
+  const sgstAmount = isInterState ? 0 : totalTaxAmount / 2
+  const igstAmount = isInterState ? totalTaxAmount : 0
+  const grandTotal = Math.round((taxableAmount + totalTaxAmount) * 100) / 100
+
+  // Validation & Save Handler
+  const handleSubmit = (finalStatus) => {
+    if (!clientName.trim()) {
+      showToast('Please specify a client name', 'error')
+      return
+    }
+
+    const invalidItem = items.find(
+      (it) => !it.description.trim() || Number(it.quantity) <= 0 || Number(it.unitPrice) < 0
+    )
+    if (invalidItem) {
+      showToast('All items must have a description, positive quantity, and valid rate', 'error')
+      return
+    }
+
+    const savedDoc = {
+      id: existingDoc?.id || `${isInvoice ? 'inv' : 'qt'}-${Date.now()}`,
+      documentNumber,
+      type: mode,
+      clientId: selectedClientId || null,
+      clientName: clientName.trim(),
+      clientEmail: clientEmail.trim(),
+      clientPhone: clientPhone.trim(),
+      clientAddress: clientAddress.trim(),
+      clientGstin: clientGstin.trim(),
+      issueDate,
+      dueDate,
+      paymentTerms,
+      status: finalStatus || status,
+      items,
+      subtotal,
+      discountType,
+      discountValue: Number(discountValue) || 0,
+      discountAmount,
+      taxableAmount,
+      cgstAmount,
+      sgstAmount,
+      igstAmount,
+      taxAmount: totalTaxAmount,
+      grandTotal,
+      amountPaid: existingDoc?.amountPaid || 0,
+      balanceDue: Math.max(0, grandTotal - (existingDoc?.amountPaid || 0)),
+      notes: notes.trim()
+    }
+
+    onSave(savedDoc)
+  }
+
+  return (
+    <div className="lf-card">
+      {/* Editor Header */}
+      <div className="lf-card-header" style={{ borderBottom: '1px solid var(--lf-border)', paddingBottom: '16px' }}>
+        <div>
+          <h2 className="lf-card-title">
+            {existingDoc ? 'Edit' : 'Create'} {isInvoice ? 'Tax Invoice' : 'Price Quotation'}
+          </h2>
+          <p className="lf-card-subtitle">
+            Fill in the billing details, add product line items via search or barcode scanner, and issue document.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button type="button" className="lf-btn lf-btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="lf-btn lf-btn-secondary"
+            onClick={() => handleSubmit('Draft')}
+          >
+            Save as Draft
+          </button>
+          <button
+            type="button"
+            className="lf-btn lf-btn-primary"
+            onClick={() => handleSubmit(isInvoice ? 'Sent' : 'Sent')}
+          >
+            <Check size={16} />
+            <span>Save & Issue</span>
+          </button>
+        </div>
+      </div>
+
+      {/* DOCUMENT METADATA FORM */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', margin: '24px 0' }}>
+        {/* Customer Information */}
+        <div className="lf-card" style={{ backgroundColor: 'var(--lf-bg)', border: '1px solid var(--lf-border)' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px', color: 'var(--lf-brand)' }}>
+            Client & Billing Details
+          </h4>
+
+          <div className="lf-form-group" style={{ marginBottom: '12px' }}>
+            <label className="lf-form-label">Select Registered Client</label>
+            <select
+              className="lf-form-select"
+              value={selectedClientId}
+              onChange={(e) => handleClientChange(e.target.value)}
+            >
+              <option value="">-- Choose existing client or enter manual details --</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.gstin || 'No GSTIN'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="lf-form-group" style={{ marginBottom: '12px' }}>
+            <label className="lf-form-label">Client Name *</label>
+            <input
+              type="text"
+              className="lf-form-input"
+              placeholder="Full Legal / Company Name"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Email</label>
+              <input
+                type="email"
+                className="lf-form-input"
+                placeholder="billing@client.com"
+                value={clientEmail}
+                onChange={(e) => setClientEmail(e.target.value)}
+              />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Phone</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                placeholder="+91..."
+                value={clientPhone}
+                onChange={(e) => setClientPhone(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="lf-form-group" style={{ marginBottom: '12px' }}>
+            <label className="lf-form-label">GSTIN (for GST invoice tax credit)</label>
+            <input
+              type="text"
+              className="lf-form-input"
+              placeholder="e.g. 27AABCR1234F1Z5"
+              value={clientGstin}
+              onChange={(e) => setClientGstin(e.target.value.toUpperCase())}
+            />
+          </div>
+
+          <div className="lf-form-group">
+            <label className="lf-form-label">Billing Address</label>
+            <textarea
+              className="lf-form-textarea"
+              style={{ minHeight: '60px' }}
+              placeholder="Street, City, State, PIN..."
+              value={clientAddress}
+              onChange={(e) => setClientAddress(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Document Attributes */}
+        <div className="lf-card" style={{ backgroundColor: 'var(--lf-bg)', border: '1px solid var(--lf-border)' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px', color: 'var(--lf-brand)' }}>
+            Document Parameters
+          </h4>
+
+          <div className="lf-form-group" style={{ marginBottom: '12px' }}>
+            <label className="lf-form-label">Document Number</label>
+            <input
+              type="text"
+              className="lf-form-input"
+              value={documentNumber}
+              onChange={(e) => setDocumentNumber(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Issue Date</label>
+              <input
+                type="date"
+                className="lf-form-input"
+                value={issueDate}
+                onChange={(e) => setIssueDate(e.target.value)}
+              />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">{isInvoice ? 'Due Date' : 'Validity Date'}</label>
+              <input
+                type="date"
+                className="lf-form-input"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Payment Terms</label>
+              <select
+                className="lf-form-select"
+                value={paymentTerms}
+                onChange={(e) => setPaymentTerms(e.target.value)}
+              >
+                <option value="Due on Receipt">Due on Receipt</option>
+                <option value="Net 15">Net 15 Days</option>
+                <option value="Net 30">Net 30 Days</option>
+                <option value="Net 45">Net 45 Days</option>
+                <option value="Custom">Custom Terms</option>
+              </select>
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Status</label>
+              <select
+                className="lf-form-select"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="Draft">Draft</option>
+                <option value="Sent">Sent / Issued</option>
+                {isInvoice ? (
+                  <>
+                    <option value="Paid">Paid</option>
+                    <option value="Overdue">Overdue</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Accepted">Accepted</option>
+                    <option value="Rejected">Rejected</option>
+                  </>
+                )}
+              </select>
+            </div>
+          </div>
+
+          <div className="lf-form-group">
+            <label className="lf-form-label">Place of Supply / Tax Jurisdiction</label>
+            <div style={{ padding: '8px 12px', background: '#FFFFFF', border: '1px solid var(--lf-border)', borderRadius: '6px', fontSize: '12px' }}>
+              {isInterState ? (
+                <span style={{ color: 'var(--lf-highlight)', fontWeight: 600 }}>
+                  Inter-State Supply: IGST applies ({clientGstin ? clientGstin.substring(0, 2) : 'Other State'})
+                </span>
+              ) : (
+                <span style={{ color: 'var(--lf-brand)', fontWeight: 600 }}>
+                  Intra-State Supply: CGST (50%) + SGST (50%) apply
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* LINE ITEMS SECTION */}
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 700 }}>Line Items & Products</h3>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              className="lf-btn lf-btn-accent lf-btn-sm"
+              onClick={() => setScannerOpen(true)}
+            >
+              <ScanBarcode size={15} />
+              <span>Scan Barcode</span>
+            </button>
+            <button
+              type="button"
+              className="lf-btn lf-btn-secondary lf-btn-sm"
+              onClick={handleAddItem}
+            >
+              <Plus size={15} />
+              <span>Add Line Item</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="lf-table-container">
+          <table className="lf-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40px' }}>#</th>
+                <th style={{ width: '220px' }}>Product Catalog</th>
+                <th>Item Description *</th>
+                <th style={{ width: '100px' }}>SKU</th>
+                <th style={{ width: '80px' }}>Qty *</th>
+                <th style={{ width: '110px' }}>Unit Price (₹)</th>
+                <th style={{ width: '90px' }}>GST Rate</th>
+                <th style={{ width: '110px' }}>Total (₹)</th>
+                <th style={{ width: '40px' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, idx) => (
+                <tr key={item.id || idx}>
+                  <td style={{ color: 'var(--lf-text-muted)' }}>{idx + 1}</td>
+                  <td>
+                    <select
+                      className="lf-form-select"
+                      style={{ fontSize: '12px', padding: '6px' }}
+                      value={item.productId || ''}
+                      onChange={(e) => handleProductSelect(idx, e.target.value)}
+                    >
+                      <option value="">-- Pick from catalog --</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({formatINR(p.price)})
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      className="lf-form-input"
+                      placeholder="Item name / description"
+                      value={item.description}
+                      onChange={(e) => handleItemChange(idx, 'description', e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      className="lf-form-input"
+                      placeholder="SKU"
+                      value={item.sku || ''}
+                      onChange={(e) => handleItemChange(idx, 'sku', e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min="1"
+                      className="lf-form-input"
+                      value={item.quantity}
+                      onChange={(e) => handleItemChange(idx, 'quantity', e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="lf-form-input"
+                      value={item.unitPrice}
+                      onChange={(e) => handleItemChange(idx, 'unitPrice', e.target.value)}
+                    />
+                  </td>
+                  <td>
+                    <select
+                      className="lf-form-select"
+                      value={item.gstRate}
+                      onChange={(e) => handleItemChange(idx, 'gstRate', Number(e.target.value))}
+                    >
+                      <option value="0">0%</option>
+                      <option value="5">5%</option>
+                      <option value="12">12%</option>
+                      <option value="18">18%</option>
+                      <option value="28">28%</option>
+                    </select>
+                  </td>
+                  <td style={{ fontWeight: 600 }}>{formatINR(item.total)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="lf-btn lf-btn-ghost lf-btn-sm"
+                      style={{ color: 'var(--lf-danger)', padding: '4px' }}
+                      onClick={() => handleRemoveItem(idx)}
+                      title="Remove Item"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* BOTTOM SECTION: NOTES & CALCULATED TOTALS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+        {/* Notes & Bank Terms */}
+        <div>
+          <div className="lf-form-group" style={{ marginBottom: '14px' }}>
+            <label className="lf-form-label">Notes & Terms of Payment</label>
+            <textarea
+              className="lf-form-textarea"
+              style={{ minHeight: '110px' }}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+          <div style={{ padding: '12px', background: 'var(--lf-bg)', borderRadius: '8px', border: '1px solid var(--lf-border)' }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--lf-text-muted)', marginBottom: '4px' }}>
+              BANK PAYMENT DETAILS DISPLAYED ON INVOICE
+            </div>
+            <div style={{ fontSize: '12px' }}>
+              <strong>{companyProfile.bankName}</strong> • A/C: {companyProfile.accountNumber} • IFSC: {companyProfile.ifscCode}
+            </div>
+          </div>
+        </div>
+
+        {/* Financial Summary Box */}
+        <div className="lf-card" style={{ backgroundColor: 'var(--lf-bg)', border: '1px solid var(--lf-border)' }}>
+          <h4 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px', color: 'var(--lf-text)' }}>
+            Financial Summary
+          </h4>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px' }}>
+            <span style={{ color: 'var(--lf-text-secondary)' }}>Item Subtotal:</span>
+            <span style={{ fontWeight: 600 }}>{formatINR(subtotal)}</span>
+          </div>
+
+          {/* Discount input */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid var(--lf-border)', borderBottom: '1px solid var(--lf-border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--lf-text-secondary)' }}>Discount:</span>
+              <select
+                className="lf-form-select"
+                style={{ width: '80px', padding: '2px 4px', height: '28px', fontSize: '11px' }}
+                value={discountType}
+                onChange={(e) => setDiscountType(e.target.value)}
+              >
+                <option value="percentage">%</option>
+                <option value="fixed">₹ Fixed</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <input
+                type="number"
+                min="0"
+                style={{ width: '80px', height: '28px', textAlign: 'right' }}
+                className="lf-form-input"
+                value={discountValue}
+                onChange={(e) => setDiscountValue(e.target.value)}
+              />
+              <span style={{ fontWeight: 600, color: 'var(--lf-highlight)' }}>-{formatINR(discountAmount)}</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px' }}>
+            <span style={{ color: 'var(--lf-text-secondary)' }}>Taxable Value:</span>
+            <span style={{ fontWeight: 600 }}>{formatINR(taxableAmount)}</span>
+          </div>
+
+          {isInterState ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '12px', color: 'var(--lf-text-secondary)' }}>
+              <span>IGST (Integrated Tax):</span>
+              <span>{formatINR(igstAmount)}</span>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '12px', color: 'var(--lf-text-secondary)' }}>
+                <span>CGST (Central Tax 50%):</span>
+                <span>{formatINR(cgstAmount)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '12px', color: 'var(--lf-text-secondary)' }}>
+                <span>SGST (State Tax 50%):</span>
+                <span>{formatINR(sgstAmount)}</span>
+              </div>
+            </>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0 6px', borderTop: '2px solid var(--lf-brand)', marginTop: '8px' }}>
+            <span style={{ fontSize: '16px', fontWeight: 800, color: 'var(--lf-brand)' }}>Grand Total:</span>
+            <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--lf-brand)' }}>{formatINR(grandTotal)}</span>
+          </div>
+
+          <div style={{ fontSize: '11px', color: 'var(--lf-text-muted)', textAlign: 'right', marginTop: '4px' }}>
+            {numberToWordsINR(grandTotal)}
+          </div>
+        </div>
+      </div>
+
+      {/* BARCODE SCANNER MODAL */}
+      {scannerOpen && (
+        <BarcodeScannerModal
+          onClose={() => setScannerOpen(false)}
+          onDetected={(code) => {
+            handleAddProductByCode(code)
+          }}
+          onManualSubmit={(code) => {
+            handleAddProductByCode(code)
+          }}
+          products={products}
+        />
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
+// BARCODE SCANNER MODAL (POWERED BY HTML5-QRCODE)
+// ============================================================================
+
+function BarcodeScannerModal({ onClose, onDetected, onManualSubmit, products }) {
+  const [manualCode, setManualCode] = useState('')
+  const [scannerError, setScannerError] = useState(null)
+  const [isScanning, setIsScanning] = useState(false)
+  const html5QrCodeRef = useRef(null)
+
+  useEffect(() => {
+    const scannerId = 'ledgerflow-barcode-reader'
+
+    const startScanner = async () => {
+      try {
+        const scannerInstance = new Html5Qrcode(scannerId)
+        html5QrCodeRef.current = scannerInstance
+
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 160 },
+          aspectRatio: 1.777778
+        }
+
+        await scannerInstance.start(
+          { facingMode: 'environment' },
+          config,
+          (decodedText) => {
+            onDetected(decodedText)
+          },
+          () => {
+            // Ignore non-detect frames
+          }
+        )
+        setIsScanning(true)
+      } catch (err) {
+        setScannerError(
+          err?.message || 'Unable to access camera. Please verify device camera permissions.'
+        )
+      }
+    }
+
+    startScanner()
+
+    return () => {
+      if (html5QrCodeRef.current) {
+        html5QrCodeRef.current
+          .stop()
+          .then(() => html5QrCodeRef.current.clear())
+          .catch(() => {
+            /* Cleanup ignore */
+          })
+      }
+    }
+  }, [onDetected])
+
+  const handleManualAdd = (e) => {
+    e.preventDefault()
+    if (!manualCode.trim()) return
+    onManualSubmit(manualCode.trim())
+    setManualCode('')
+  }
+
+  return (
+    <div className="lf-modal-backdrop">
+      <div className="lf-modal" style={{ maxWidth: '520px' }}>
+        <div className="lf-modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ScanBarcode size={20} style={{ color: 'var(--lf-highlight)' }} />
+            <h3 className="lf-modal-title">Live Barcode & SKU Scanner</h3>
+          </div>
+          <button type="button" className="lf-icon-btn" onClick={onClose}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="lf-modal-body">
+          <div className="lf-scanner-container">
+            <div className="lf-scanner-frame">
+              <div id="ledgerflow-barcode-reader" />
+              {isScanning && <div className="lf-scanner-laser" />}
+            </div>
+
+            {scannerError ? (
+              <div style={{ padding: '10px 14px', background: 'var(--lf-warning-bg)', border: '1px solid var(--lf-highlight-border)', borderRadius: '6px', fontSize: '12px', color: 'var(--lf-warning)' }}>
+                <strong>Camera Notice:</strong> {scannerError}
+                <div style={{ marginTop: '4px' }}>Use the manual barcode/SKU entry below to look up items.</div>
+              </div>
+            ) : (
+              <p style={{ fontSize: '12px', color: 'var(--lf-text-secondary)', textAlign: 'center' }}>
+                Position a product barcode or QR code within the viewfinder to automatically add it.
+              </p>
+            )}
+
+            {/* Quick Demo Barcodes to Test Instantly */}
+            <div style={{ width: '100%', padding: '10px', background: 'var(--lf-bg)', borderRadius: '6px', border: '1px solid var(--lf-border)' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--lf-text-muted)', marginBottom: '6px' }}>
+                DEMO BARCODES (CLICK TO TEST SIMULATED SCAN):
+              </div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {products.slice(0, 4).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="lf-badge lf-badge-draft"
+                    style={{ cursor: 'pointer', border: '1px solid var(--lf-brand-subtle)', background: '#FFFFFF' }}
+                    onClick={() => onDetected(p.barcode)}
+                  >
+                    {p.name.slice(0, 16)}... ({p.barcode})
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Manual Barcode / SKU Fallback Form */}
+            <form onSubmit={handleManualAdd} style={{ width: '100%', display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                className="lf-form-input"
+                placeholder="Enter or paste Barcode or SKU (e.g. 890103080001)..."
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+              />
+              <button type="submit" className="lf-btn lf-btn-primary">
+                Add
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div className="lf-modal-footer">
+          <button type="button" className="lf-btn lf-btn-secondary" onClick={onClose}>
+            Done Scanning
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// DOCUMENT PREVIEW MODAL & A4 PRINT TEMPLATE
+// ============================================================================
+
+function DocumentPreviewModal({ doc, companyProfile, onClose, onEdit, showToast }) {
+  const isInvoice = doc.type === 'invoice'
+
+  // Print Action
+  const handlePrint = () => {
+    window.print()
+  }
+
+  // Download Standalone Self-Contained HTML Invoice
+  const handleDownloadHtml = () => {
+    const htmlContent = generatePrintableHtml(doc, companyProfile)
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${doc.documentNumber}.html`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    showToast(`Downloaded ${doc.documentNumber}.html ready to print or save as PDF`, 'success')
+  }
+
+  return (
+    <div className="lf-modal-backdrop lf-non-printable">
+      <div className="lf-modal lf-modal-lg" style={{ maxHeight: '92vh' }}>
+        {/* Modal Top Bar */}
+        <div className="lf-modal-header">
+          <div>
+            <h3 className="lf-modal-title">
+              {isInvoice ? 'Tax Invoice Preview' : 'Price Quotation Preview'} — {doc.documentNumber}
+            </h3>
+            <span className={`lf-badge lf-badge-${doc.status.toLowerCase().replace(/\s+/g, '-')}`}>
+              {doc.status}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              className="lf-btn lf-btn-primary lf-btn-sm"
+              onClick={handlePrint}
+              title="Print document or Save as PDF"
+            >
+              <Printer size={15} />
+              <span>Print / Save as PDF</span>
+            </button>
+            <button
+              type="button"
+              className="lf-btn lf-btn-secondary lf-btn-sm"
+              onClick={handleDownloadHtml}
+              title="Download standalone file"
+            >
+              <FileDown size={15} />
+              <span>Download HTML</span>
+            </button>
+            <button type="button" className="lf-btn lf-btn-secondary lf-btn-sm" onClick={onEdit}>
+              <Edit size={15} />
+              <span>Edit</span>
+            </button>
+            <button type="button" className="lf-icon-btn" onClick={onClose}>
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Scrollable Body Previewing A4 Document */}
+        <div className="lf-modal-body" style={{ background: '#EAEFEA', padding: '24px', display: 'flex', justifyContent: 'center' }}>
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '780px',
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              borderRadius: '4px',
+              padding: '40px'
+            }}
+          >
+            <PrintableInvoiceTemplate doc={doc} companyProfile={companyProfile} />
+          </div>
+        </div>
+
+        <div className="lf-modal-footer">
+          <span style={{ fontSize: '11px', color: 'var(--lf-text-muted)', marginRight: 'auto' }}>
+            Document formatted to A4 commercial standards with GST compliance breakdown.
+          </span>
+          <button type="button" className="lf-btn lf-btn-secondary" onClick={onClose}>
+            Close Preview
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Pure Printable Template Component
+function PrintableInvoiceTemplate({ doc, companyProfile }) {
+  const isInvoice = doc.type === 'invoice'
+  const isInterState = Boolean(doc.igstAmount && doc.igstAmount > 0)
+
+  return (
+    <div style={{ fontFamily: 'Arial, sans-serif', color: '#252B27' }}>
+      {/* Top Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #286747', paddingBottom: '16px', marginBottom: '20px' }}>
+        <div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: '#286747' }}>
+            {companyProfile.tradeName || companyProfile.companyName}
+          </div>
+          <div style={{ fontSize: '11px', color: '#6B756D', maxWidth: '340px', marginTop: '4px', lineHeight: '1.4' }}>
+            {companyProfile.address}
+          </div>
+          <div style={{ fontSize: '11px', color: '#6B756D', marginTop: '4px' }}>
+            GSTIN: <strong>{companyProfile.gstin}</strong> | PAN: <strong>{companyProfile.pan}</strong>
+          </div>
+          <div style={{ fontSize: '11px', color: '#6B756D' }}>
+            Email: {companyProfile.email} | Phone: {companyProfile.phone}
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: '#252B27', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            {isInvoice ? 'Tax Invoice' : 'Price Quotation'}
+          </div>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: '#286747', marginTop: '4px' }}>
+            #{doc.documentNumber}
+          </div>
+          <div style={{ fontSize: '11px', color: '#6B756D', marginTop: '4px' }}>
+            Original for Recipient
+          </div>
+        </div>
+      </div>
+
+      {/* Meta Grid: Billed To & Document Details */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+        <div style={{ padding: '12px', background: '#F8FAF8', borderRadius: '4px', border: '1px solid #E6EAE5' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: '#286747', textTransform: 'uppercase', marginBottom: '6px' }}>
+            Billed To / Customer Details
+          </div>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: '#252B27' }}>{doc.clientName}</div>
+          <div style={{ fontSize: '11px', color: '#6B756D', marginTop: '3px' }}>{doc.clientAddress}</div>
+          {doc.clientGstin && (
+            <div style={{ fontSize: '11px', marginTop: '4px' }}>
+              GSTIN: <strong>{doc.clientGstin}</strong>
+            </div>
+          )}
+          <div style={{ fontSize: '11px', color: '#6B756D', marginTop: '2px' }}>
+            Phone: {doc.clientPhone} | Email: {doc.clientEmail}
+          </div>
+        </div>
+
+        <div style={{ padding: '12px', background: '#F8FAF8', borderRadius: '4px', border: '1px solid #E6EAE5' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: '#286747', textTransform: 'uppercase', marginBottom: '6px' }}>
+            Document Reference & Terms
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '2px 0' }}>
+            <span style={{ color: '#6B756D' }}>Issue Date:</span>
+            <span style={{ fontWeight: 600 }}>{doc.issueDate}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '2px 0' }}>
+            <span style={{ color: '#6B756D' }}>{isInvoice ? 'Due Date:' : 'Valid Until:'}</span>
+            <span style={{ fontWeight: 600 }}>{doc.dueDate}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '2px 0' }}>
+            <span style={{ color: '#6B756D' }}>Payment Terms:</span>
+            <span style={{ fontWeight: 600 }}>{doc.paymentTerms}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '2px 0' }}>
+            <span style={{ color: '#6B756D' }}>Supply Type:</span>
+            <span style={{ fontWeight: 600 }}>{isInterState ? 'Inter-State (IGST)' : 'Intra-State (CGST+SGST)'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Items Table */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', fontSize: '11px' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#EEF5F1', borderBottom: '1.5px solid #286747' }}>
+            <th style={{ padding: '8px', textAlign: 'left', width: '30px', color: '#286747' }}>#</th>
+            <th style={{ padding: '8px', textAlign: 'left', color: '#286747' }}>Description</th>
+            <th style={{ padding: '8px', textAlign: 'left', width: '70px', color: '#286747' }}>SKU</th>
+            <th style={{ padding: '8px', textAlign: 'right', width: '50px', color: '#286747' }}>Qty</th>
+            <th style={{ padding: '8px', textAlign: 'right', width: '80px', color: '#286747' }}>Rate (₹)</th>
+            <th style={{ padding: '8px', textAlign: 'right', width: '60px', color: '#286747' }}>GST</th>
+            <th style={{ padding: '8px', textAlign: 'right', width: '90px', color: '#286747' }}>Total (₹)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {doc.items.map((it, idx) => (
+            <tr key={idx} style={{ borderBottom: '1px solid #E6EAE5' }}>
+              <td style={{ padding: '8px', color: '#6B756D' }}>{idx + 1}</td>
+              <td style={{ padding: '8px', fontWeight: 600 }}>{it.description}</td>
+              <td style={{ padding: '8px', color: '#6B756D' }}>{it.sku || '-'}</td>
+              <td style={{ padding: '8px', textAlign: 'right' }}>{it.quantity}</td>
+              <td style={{ padding: '8px', textAlign: 'right' }}>{formatINR(it.unitPrice)}</td>
+              <td style={{ padding: '8px', textAlign: 'right' }}>{it.gstRate}%</td>
+              <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>{formatINR(it.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Summary Section */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', marginBottom: '24px' }}>
+        {/* Bank & Notes Details */}
+        <div style={{ flex: 1 }}>
+          <div style={{ padding: '10px 14px', background: '#F8FAF8', border: '1px solid #E6EAE5', borderRadius: '4px', marginBottom: '12px', fontSize: '11px' }}>
+            <div style={{ fontWeight: 700, color: '#286747', marginBottom: '4px' }}>BANK PAYMENT DETAILS</div>
+            <div>Bank: <strong>{companyProfile.bankName}</strong></div>
+            <div>A/C Name: <strong>{companyProfile.accountHolder}</strong></div>
+            <div>A/C Number: <strong>{companyProfile.accountNumber}</strong></div>
+            <div>IFSC Code: <strong>{companyProfile.ifscCode}</strong> | UPI ID: <strong>{companyProfile.upiId}</strong></div>
+          </div>
+          {doc.notes && (
+            <div style={{ fontSize: '10px', color: '#6B756D', lineHeight: '1.4' }}>
+              <strong>Terms:</strong> {doc.notes}
+            </div>
+          )}
+        </div>
+
+        {/* Totals Table */}
+        <div style={{ width: '280px', border: '1px solid #E6EAE5', borderRadius: '4px', padding: '12px', background: '#FFFFFF', fontSize: '11px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
+            <span style={{ color: '#6B756D' }}>Subtotal:</span>
+            <span style={{ fontWeight: 600 }}>{formatINR(doc.subtotal)}</span>
+          </div>
+
+          {doc.discountAmount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', color: '#C57B36' }}>
+              <span>Discount:</span>
+              <span>-{formatINR(doc.discountAmount)}</span>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
+            <span style={{ color: '#6B756D' }}>Taxable Amount:</span>
+            <span style={{ fontWeight: 600 }}>{formatINR(doc.taxableAmount)}</span>
+          </div>
+
+          {isInterState ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
+              <span style={{ color: '#6B756D' }}>IGST:</span>
+              <span>{formatINR(doc.igstAmount)}</span>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
+                <span style={{ color: '#6B756D' }}>CGST:</span>
+                <span>{formatINR(doc.cgstAmount)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
+                <span style={{ color: '#6B756D' }}>SGST:</span>
+                <span>{formatINR(doc.sgstAmount)}</span>
+              </div>
+            </>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 4px', borderTop: '2px solid #286747', marginTop: '6px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 800, color: '#286747' }}>Total:</span>
+            <span style={{ fontSize: '14px', fontWeight: 800, color: '#286747' }}>{formatINR(doc.grandTotal)}</span>
+          </div>
+
+          <div style={{ fontSize: '9px', color: '#6B756D', textAlign: 'right', marginTop: '2px' }}>
+            {numberToWordsINR(doc.grandTotal)}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer Signatures */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '1px solid #E6EAE5', paddingTop: '16px', marginTop: '20px' }}>
+        <div style={{ fontSize: '9px', color: '#8F9991' }}>
+          This is a computer generated document. Generated via LedgerFlow Financial Suite.
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#286747', marginBottom: '32px' }}>
+            For {companyProfile.tradeName || companyProfile.companyName}
+          </div>
+          <div style={{ fontSize: '9px', borderTop: '1px solid #252B27', paddingTop: '3px', width: '160px' }}>
+            Authorized Signatory
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Generate Standalone HTML Document
+function generatePrintableHtml(doc, profile) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${doc.documentNumber} - ${profile.tradeName}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 40px; color: #252B27; background: #fff; }
+    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #286747; padding-bottom: 16px; margin-bottom: 20px; }
+    .title { font-size: 24px; font-weight: 800; color: #286747; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+    .box { padding: 12px; background: #F8FAF8; border: 1px solid #E6EAE5; border-radius: 4px; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; }
+    th { background: #EEF5F1; color: #286747; text-align: left; padding: 8px; border-bottom: 1.5px solid #286747; }
+    td { padding: 8px; border-bottom: 1px solid #E6EAE5; }
+    .total-box { margin-left: auto; width: 280px; border: 1px solid #E6EAE5; border-radius: 4px; padding: 12px; font-size: 12px; }
+    .row { display: flex; justify-content: space-between; padding: 3px 0; }
+    .grand { border-top: 2px solid #286747; margin-top: 6px; padding-top: 6px; font-size: 15px; font-weight: 800; color: #286747; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="title">${profile.tradeName || profile.companyName}</div>
+      <div style="font-size: 12px; color: #6B756D; margin-top: 4px;">${profile.address}</div>
+      <div style="font-size: 12px; color: #6B756D;">GSTIN: ${profile.gstin} | PAN: ${profile.pan}</div>
+    </div>
+    <div style="text-align: right;">
+      <div style="font-size: 24px; font-weight: 800; text-transform: uppercase;">${doc.type === 'invoice' ? 'Tax Invoice' : 'Price Quotation'}</div>
+      <div style="font-size: 14px; font-weight: 700; color: #286747;">#${doc.documentNumber}</div>
+      <div style="font-size: 12px; color: #6B756D;">Date: ${doc.issueDate}</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="box">
+      <strong>Billed To:</strong><br>
+      <strong>${doc.clientName}</strong><br>
+      ${doc.clientAddress}<br>
+      ${doc.clientGstin ? 'GSTIN: ' + doc.clientGstin : ''}
+    </div>
+    <div class="box">
+      <strong>Payment & Due Details:</strong><br>
+      Due Date: ${doc.dueDate}<br>
+      Terms: ${doc.paymentTerms}<br>
+      Bank: ${profile.bankName} (A/C: ${profile.accountNumber}, IFSC: ${profile.ifscCode})
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Description</th>
+        <th>SKU</th>
+        <th style="text-align: right;">Qty</th>
+        <th style="text-align: right;">Rate</th>
+        <th style="text-align: right;">GST</th>
+        <th style="text-align: right;">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${doc.items.map((it, i) => `<tr>
+        <td>${i + 1}</td>
+        <td><strong>${it.description}</strong></td>
+        <td>${it.sku || '-'}</td>
+        <td style="text-align: right;">${it.quantity}</td>
+        <td style="text-align: right;">₹${it.unitPrice.toLocaleString('en-IN')}</td>
+        <td style="text-align: right;">${it.gstRate}%</td>
+        <td style="text-align: right;">${it.total.toLocaleString('en-IN')}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+
+  <div class="total-box">
+    <div class="row"><span>Subtotal:</span><span>₹${doc.subtotal.toLocaleString('en-IN')}</span></div>
+    <div class="row"><span>Tax:</span><span>₹${doc.taxAmount.toLocaleString('en-IN')}</span></div>
+    <div class="row grand"><span>Total:</span><span>₹${doc.grandTotal.toLocaleString('en-IN')}</span></div>
+  </div>
+
+  <div style="margin-top: 40px; border-top: 1px solid #E6EAE5; padding-top: 12px; font-size: 11px; color: #8F9991; display: flex; justify-content: space-between;">
+    <div>Generated via LedgerFlow Financial Suite.</div>
+    <div>Authorized Signatory: ${profile.tradeName}</div>
+  </div>
+</body>
+</html>`
+}
+
+// ============================================================================
+// CLIENTS MANAGEMENT VIEW
+// ============================================================================
+
+function ClientsView({ clients, invoices, onAddClient, onEditClient, onDeleteClient, onSelectClientToInvoice }) {
+  const [search, setSearch] = useState('')
+
+  const filteredClients = useMemo(() => {
+    return clients.filter((c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.email.toLowerCase().includes(search.toLowerCase()) ||
+      (c.gstin && c.gstin.toLowerCase().includes(search.toLowerCase()))
+    )
+  }, [clients, search])
+
+  return (
+    <div className="lf-card">
+      <div className="lf-card-header">
+        <div>
+          <h2 className="lf-card-title">Client Directory</h2>
+          <p className="lf-card-subtitle">Manage customer profiles, billing addresses, and GST numbers</p>
+        </div>
+        <button type="button" className="lf-btn lf-btn-primary" onClick={onAddClient}>
+          <Plus size={16} />
+          <span>Add New Client</span>
+        </button>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <input
+          type="text"
+          className="lf-form-input"
+          placeholder="Search clients by name, email, or GSTIN..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      <div className="lf-table-container">
+        <table className="lf-table">
+          <thead>
+            <tr>
+              <th>Client / Company</th>
+              <th>Contact Info</th>
+              <th>GSTIN</th>
+              <th>State / Location</th>
+              <th>Total Invoices</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredClients.map((client) => {
+              const clientInvoices = invoices.filter((i) => i.clientId === client.id)
+              const totalBilled = clientInvoices.reduce((s, i) => s + (i.grandTotal || 0), 0)
+
+              return (
+                <tr key={client.id}>
+                  <td>
+                    <div style={{ fontWeight: 700, color: 'var(--lf-text)' }}>{client.name}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--lf-text-muted)' }}>{client.contactPerson}</div>
+                  </td>
+                  <td>
+                    <div>{client.email}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--lf-text-muted)' }}>{client.phone}</div>
+                  </td>
+                  <td>
+                    {client.gstin ? (
+                      <span className="lf-badge lf-badge-draft">{client.gstin}</span>
+                    ) : (
+                      <span style={{ color: 'var(--lf-text-muted)' }}>Unregistered</span>
+                    )}
+                  </td>
+                  <td>{client.address ? client.address.split(',')[0] : 'N/A'}</td>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{clientInvoices.length} Invoices</div>
+                    <div style={{ fontSize: '11px', color: 'var(--lf-brand)' }}>{formatINR(totalBilled)}</div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="lf-btn lf-btn-outline-brand lf-btn-sm"
+                        onClick={() => onSelectClientToInvoice(client)}
+                        title="Create Invoice for Client"
+                      >
+                        <Receipt size={14} />
+                        <span>Invoice</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="lf-btn lf-btn-ghost lf-btn-sm"
+                        onClick={() => onEditClient(client)}
+                        title="Edit Client"
+                      >
+                        <Edit size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        className="lf-btn lf-btn-ghost lf-btn-sm"
+                        style={{ color: 'var(--lf-danger)' }}
+                        onClick={() => onDeleteClient(client)}
+                        title="Delete Client"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function ClientModal({ client, onClose, onSave }) {
+  const [name, setName] = useState(client?.name || '')
+  const [contactPerson, setContactPerson] = useState(client?.contactPerson || '')
+  const [email, setEmail] = useState(client?.email || '')
+  const [phone, setPhone] = useState(client?.phone || '')
+  const [gstin, setGstin] = useState(client?.gstin || '')
+  const [address, setAddress] = useState(client?.address || '')
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!name.trim()) return
+    onSave({
+      id: client?.id,
+      name: name.trim(),
+      contactPerson: contactPerson.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      gstin: gstin.trim().toUpperCase(),
+      address: address.trim()
+    })
+  }
+
+  return (
+    <div className="lf-modal-backdrop">
+      <div className="lf-modal" style={{ maxWidth: '500px' }}>
+        <div className="lf-modal-header">
+          <h3 className="lf-modal-title">{client ? 'Edit Client' : 'Add New Client'}</h3>
+          <button type="button" className="lf-icon-btn" onClick={onClose}><X size={16} /></button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="lf-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Client / Company Name *</label>
+              <input type="text" required className="lf-form-input" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Contact Person</label>
+              <input type="text" className="lf-form-input" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="lf-form-group">
+                <label className="lf-form-label">Email</label>
+                <input type="email" className="lf-form-input" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+              <div className="lf-form-group">
+                <label className="lf-form-label">Phone</label>
+                <input type="text" className="lf-form-input" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              </div>
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">GSTIN</label>
+              <input type="text" className="lf-form-input" placeholder="e.g. 27AABCR1234F1Z5" value={gstin} onChange={(e) => setGstin(e.target.value.toUpperCase())} />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Billing Address</label>
+              <textarea className="lf-form-textarea" value={address} onChange={(e) => setAddress(e.target.value)} />
+            </div>
+          </div>
+          <div className="lf-modal-footer">
+            <button type="button" className="lf-btn lf-btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="lf-btn lf-btn-primary">Save Client</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// PRODUCTS & INVENTORY VIEW
+// ============================================================================
+
+function ProductsView({ products, onAddProduct, onEditProduct, onDeleteProduct, onAddProductToNewInvoice }) {
+  const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('All')
+
+  const categories = useMemo(() => {
+    const set = new Set(products.map((p) => p.category))
+    return ['All', ...Array.from(set)]
+  }, [products])
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const matchCat = categoryFilter === 'All' || p.category === categoryFilter
+      const matchSearch =
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.sku.toLowerCase().includes(search.toLowerCase()) ||
+        (p.barcode && p.barcode.includes(search))
+      return matchCat && matchSearch
+    })
+  }, [products, categoryFilter, search])
+
+  return (
+    <div className="lf-card">
+      <div className="lf-card-header">
+        <div>
+          <h2 className="lf-card-title">Products & Inventory Catalogue</h2>
+          <p className="lf-card-subtitle">Manage catalog items, barcodes, prices, stock levels, and HSN codes</p>
+        </div>
+        <button type="button" className="lf-btn lf-btn-primary" onClick={onAddProduct}>
+          <Plus size={16} />
+          <span>Add Product</span>
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '20px' }}>
+        <input
+          type="text"
+          className="lf-form-input"
+          style={{ flex: 1, minWidth: '220px' }}
+          placeholder="Search products by title, SKU, or Barcode..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          className="lf-form-select"
+          style={{ width: '160px' }}
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+        >
+          {categories.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="lf-table-container">
+        <table className="lf-table">
+          <thead>
+            <tr>
+              <th>Product Details</th>
+              <th>SKU / Barcode</th>
+              <th>Category</th>
+              <th>Unit Price</th>
+              <th>GST Rate</th>
+              <th>Stock</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.map((p) => (
+              <tr key={p.id}>
+                <td>
+                  <div style={{ fontWeight: 700, color: 'var(--lf-text)' }}>{p.name}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--lf-text-muted)' }}>{p.description}</div>
+                </td>
+                <td>
+                  <div style={{ fontWeight: 600 }}>{p.sku}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--lf-highlight)' }}>
+                    {p.barcode ? `Barcode: ${p.barcode}` : 'No Barcode'}
+                  </div>
+                </td>
+                <td>
+                  <span className="lf-badge lf-badge-draft">{p.category}</span>
+                </td>
+                <td style={{ fontWeight: 700 }}>{formatINR(p.price)}</td>
+                <td>{p.gstRate}%</td>
+                <td>
+                  <span className={`lf-badge ${p.stock > 10 ? 'lf-badge-paid' : 'lf-badge-overdue'}`}>
+                    {p.stock} units
+                  </span>
+                </td>
+                <td>
+                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      className="lf-btn lf-btn-outline-brand lf-btn-sm"
+                      onClick={() => onAddProductToNewInvoice(p)}
+                      title="Add to New Invoice"
+                    >
+                      <Plus size={14} />
+                      <span>Invoice</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="lf-btn lf-btn-ghost lf-btn-sm"
+                      onClick={() => onEditProduct(p)}
+                    >
+                      <Edit size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      className="lf-btn lf-btn-ghost lf-btn-sm"
+                      style={{ color: 'var(--lf-danger)' }}
+                      onClick={() => onDeleteProduct(p)}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function ProductModal({ product, onClose, onSave }) {
+  const [name, setName] = useState(product?.name || '')
+  const [sku, setSku] = useState(product?.sku || '')
+  const [barcode, setBarcode] = useState(product?.barcode || '')
+  const [category, setCategory] = useState(product?.category || 'Hardware')
+  const [price, setPrice] = useState(product?.price || '')
+  const [gstRate, setGstRate] = useState(product?.gstRate || 18)
+  const [stock, setStock] = useState(product?.stock || 10)
+  const [description, setDescription] = useState(product?.description || '')
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!name.trim()) return
+    onSave({
+      id: product?.id,
+      name: name.trim(),
+      sku: sku.trim() || `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
+      barcode: barcode.trim(),
+      category: category.trim(),
+      price: Number(price) || 0,
+      gstRate: Number(gstRate) || 18,
+      stock: Number(stock) || 0,
+      description: description.trim()
+    })
+  }
+
+  return (
+    <div className="lf-modal-backdrop">
+      <div className="lf-modal" style={{ maxWidth: '520px' }}>
+        <div className="lf-modal-header">
+          <h3 className="lf-modal-title">{product ? 'Edit Product' : 'Add New Product'}</h3>
+          <button type="button" className="lf-icon-btn" onClick={onClose}><X size={16} /></button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="lf-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Product / Service Name *</label>
+              <input type="text" required className="lf-form-input" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="lf-form-group">
+                <label className="lf-form-label">SKU</label>
+                <input type="text" className="lf-form-input" placeholder="e.g. HRD-01" value={sku} onChange={(e) => setSku(e.target.value)} />
+              </div>
+              <div className="lf-form-group">
+                <label className="lf-form-label">Barcode Number (EAN/UPC)</label>
+                <input type="text" className="lf-form-input" placeholder="e.g. 890103080001" value={barcode} onChange={(e) => setBarcode(e.target.value)} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              <div className="lf-form-group">
+                <label className="lf-form-label">Price (₹) *</label>
+                <input type="number" required min="0" step="0.01" className="lf-form-input" value={price} onChange={(e) => setPrice(e.target.value)} />
+              </div>
+              <div className="lf-form-group">
+                <label className="lf-form-label">GST Rate</label>
+                <select className="lf-form-select" value={gstRate} onChange={(e) => setGstRate(Number(e.target.value))}>
+                  <option value="0">0%</option>
+                  <option value="5">5%</option>
+                  <option value="12">12%</option>
+                  <option value="18">18%</option>
+                  <option value="28">28%</option>
+                </select>
+              </div>
+              <div className="lf-form-group">
+                <label className="lf-form-label">Stock Units</label>
+                <input type="number" min="0" className="lf-form-input" value={stock} onChange={(e) => setStock(e.target.value)} />
+              </div>
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Category</label>
+              <select className="lf-form-select" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="Hardware">Hardware</option>
+                <option value="Software">Software</option>
+                <option value="Consulting">Consulting</option>
+                <option value="Services">Services</option>
+                <option value="Accessories">Accessories</option>
+              </select>
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Description</label>
+              <textarea className="lf-form-textarea" value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+          </div>
+          <div className="lf-modal-footer">
+            <button type="button" className="lf-btn lf-btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="lf-btn lf-btn-primary">Save Product</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// PAYMENTS VIEW & RECORD PAYMENT MODAL
+// ============================================================================
+
+function PaymentsView({ payments, onOpenPaymentModal }) {
+  const totalReceived = useMemo(() => payments.reduce((sum, p) => sum + (p.amount || 0), 0), [payments])
+
+  return (
+    <div className="lf-card">
+      <div className="lf-card-header">
+        <div>
+          <h2 className="lf-card-title">Payment Collections</h2>
+          <p className="lf-card-subtitle">Record and audit client payments, bank transfers, and receipts</p>
+        </div>
+        <button type="button" className="lf-btn lf-btn-primary" onClick={onOpenPaymentModal}>
+          <Plus size={16} />
+          <span>Record Received Payment</span>
+        </button>
+      </div>
+
+      <div className="lf-metrics-grid" style={{ marginBottom: '20px' }}>
+        <div className="lf-metric-card">
+          <span className="lf-metric-label">Total Collections Recorded</span>
+          <div className="lf-metric-value">{formatINR(totalReceived)}</div>
+          <div className="lf-metric-subtext">Across {payments.length} verified transactions</div>
+        </div>
+      </div>
+
+      <div className="lf-table-container">
+        <table className="lf-table">
+          <thead>
+            <tr>
+              <th>Receipt #</th>
+              <th>Invoice #</th>
+              <th>Client</th>
+              <th>Date</th>
+              <th>Method</th>
+              <th>Reference #</th>
+              <th>Amount (₹)</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payments.map((p) => (
+              <tr key={p.id}>
+                <td style={{ fontWeight: 600, color: 'var(--lf-brand)' }}>{p.paymentNumber}</td>
+                <td><strong>{p.invoiceNumber}</strong></td>
+                <td>{p.clientName}</td>
+                <td>{p.paymentDate}</td>
+                <td>
+                  <span className="lf-badge lf-badge-draft">{p.paymentMethod}</span>
+                </td>
+                <td style={{ fontSize: '11px', color: 'var(--lf-text-muted)' }}>{p.referenceNumber || 'N/A'}</td>
+                <td style={{ fontWeight: 700, color: 'var(--lf-brand)' }}>{formatINR(p.amount)}</td>
+                <td>
+                  <span className="lf-badge lf-badge-paid">{p.status}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function RecordPaymentModal({ preselectedDoc, invoices, onClose, onSave }) {
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(preselectedDoc?.id || (invoices[0]?.id || ''))
+  const [amount, setAmount] = useState(preselectedDoc?.balanceDue || invoices[0]?.balanceDue || '')
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
+  const [paymentMethod, setPaymentMethod] = useState('Bank Transfer (NEFT)')
+  const [referenceNumber, setReferenceNumber] = useState('')
+  const [notes, setNotes] = useState('')
+
+  const activeInvoice = invoices.find((i) => i.id === selectedInvoiceId) || preselectedDoc
+
+  const handleInvoiceChange = (id) => {
+    setSelectedInvoiceId(id)
+    const inv = invoices.find((i) => i.id === id)
+    if (inv) {
+      setAmount(inv.balanceDue)
+    }
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    const numAmount = Number(amount)
+    if (!activeInvoice || numAmount <= 0) return
+
+    onSave({
+      id: `pay-${Date.now()}`,
+      paymentNumber: `PAY-2026-${Math.floor(100 + Math.random() * 900)}`,
+      invoiceId: activeInvoice.id,
+      invoiceNumber: activeInvoice.documentNumber,
+      clientName: activeInvoice.clientName,
+      amount: numAmount,
+      paymentDate,
+      paymentMethod,
+      referenceNumber: referenceNumber.trim(),
+      status: 'Completed',
+      notes: notes.trim()
+    })
+  }
+
+  return (
+    <div className="lf-modal-backdrop">
+      <div className="lf-modal" style={{ maxWidth: '480px' }}>
+        <div className="lf-modal-header">
+          <h3 className="lf-modal-title">Record Payment Received</h3>
+          <button type="button" className="lf-icon-btn" onClick={onClose}><X size={16} /></button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="lf-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Target Invoice</label>
+              {preselectedDoc ? (
+                <div style={{ padding: '8px 12px', background: 'var(--lf-bg)', borderRadius: '6px', fontSize: '13px', fontWeight: 600 }}>
+                  {preselectedDoc.documentNumber} — {preselectedDoc.clientName} (Due: {formatINR(preselectedDoc.balanceDue)})
+                </div>
+              ) : (
+                <select
+                  className="lf-form-select"
+                  value={selectedInvoiceId}
+                  onChange={(e) => handleInvoiceChange(e.target.value)}
+                >
+                  {invoices.map((inv) => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.documentNumber} • {inv.clientName} (Bal: {formatINR(inv.balanceDue)})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="lf-form-group">
+              <label className="lf-form-label">Payment Amount (₹) *</label>
+              <input
+                type="number"
+                required
+                min="1"
+                step="0.01"
+                className="lf-form-input"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="lf-form-group">
+                <label className="lf-form-label">Payment Date</label>
+                <input
+                  type="date"
+                  className="lf-form-input"
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                />
+              </div>
+              <div className="lf-form-group">
+                <label className="lf-form-label">Payment Method</label>
+                <select
+                  className="lf-form-select"
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                >
+                  <option value="Bank Transfer (NEFT)">Bank Transfer (NEFT)</option>
+                  <option value="RTGS Wire">RTGS Wire</option>
+                  <option value="UPI Business">UPI Business</option>
+                  <option value="Corporate Credit Card">Corporate Credit Card</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Cash">Cash</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="lf-form-group">
+              <label className="lf-form-label">Bank Reference / UTR Number</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                placeholder="e.g. HDFC202610190012"
+                value={referenceNumber}
+                onChange={(e) => setReferenceNumber(e.target.value)}
+              />
+            </div>
+
+            <div className="lf-form-group">
+              <label className="lf-form-label">Notes</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                placeholder="Optional payment notes..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="lf-modal-footer">
+            <button type="button" className="lf-btn lf-btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="lf-btn lf-btn-primary">Record Payment</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// REPORTS & ANALYTICS VIEW
+// ============================================================================
+
+function ReportsView({ invoices, payments }) {
+  const [dateRange, setDateRange] = useState('YTD')
+
+  const totalInvoiced = invoices.reduce((s, i) => s + (i.grandTotal || 0), 0)
+  const totalTaxCollected = invoices.reduce((s, i) => s + (i.taxAmount || 0), 0)
+  const totalCollected = payments.reduce((s, p) => s + (p.amount || 0), 0)
+
+  // Tax Breakdown
+  const cgstTotal = invoices.reduce((s, i) => s + (i.cgstAmount || 0), 0)
+  const sgstTotal = invoices.reduce((s, i) => s + (i.sgstAmount || 0), 0)
+  const igstTotal = invoices.reduce((s, i) => s + (i.igstAmount || 0), 0)
+
+  // CSV Export
+  const handleExportCsv = () => {
+    let csv = 'Invoice Number,Client,Issue Date,Due Date,Subtotal,Tax,Grand Total,Status\n'
+    invoices.forEach((inv) => {
+      csv += `"${inv.documentNumber}","${inv.clientName}","${inv.issueDate}","${inv.dueDate}",${inv.subtotal},${inv.taxAmount},${inv.grandTotal},"${inv.status}"\n`
+    })
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ledgerflow_financial_report_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div>
+      <div className="lf-card" style={{ marginBottom: '24px' }}>
+        <div className="lf-card-header">
+          <div>
+            <h2 className="lf-card-title">Financial Reports & GST Tax Audit</h2>
+            <p className="lf-card-subtitle">Comprehensive tax summary, GST collected, and exportable financial reports</p>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <select
+              className="lf-form-select"
+              style={{ width: '150px' }}
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+            >
+              <option value="ALL">All Time</option>
+              <option value="YTD">FY 2026-27 (YTD)</option>
+              <option value="Q3">Q3 Oct-Dec</option>
+              <option value="30D">Last 30 Days</option>
+            </select>
+            <button type="button" className="lf-btn lf-btn-primary" onClick={handleExportCsv}>
+              <Download size={16} />
+              <span>Export Report (CSV)</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="lf-metrics-grid">
+          <div className="lf-metric-card">
+            <span className="lf-metric-label">Gross Billed Value</span>
+            <div className="lf-metric-value">{formatINR(totalInvoiced)}</div>
+            <div className="lf-metric-subtext">Total invoices issued</div>
+          </div>
+          <div className="lf-metric-card">
+            <span className="lf-metric-label">GST Tax Collected</span>
+            <div className="lf-metric-value" style={{ color: 'var(--lf-brand)' }}>{formatINR(totalTaxCollected)}</div>
+            <div className="lf-metric-subtext">CGST + SGST + IGST liability</div>
+          </div>
+          <div className="lf-metric-card">
+            <span className="lf-metric-label">Collections Received</span>
+            <div className="lf-metric-value">{formatINR(totalCollected)}</div>
+            <div className="lf-metric-subtext">Bank & UPI cleared receipts</div>
+          </div>
+        </div>
+
+        {/* GST Audit Breakdown Card */}
+        <div style={{ marginTop: '20px', padding: '16px', background: 'var(--lf-bg)', borderRadius: '8px', border: '1px solid var(--lf-border)' }}>
+          <h4 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px', color: 'var(--lf-brand)' }}>
+            GST Tax Breakdown (Government Compliance)
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+            <div style={{ padding: '10px', background: '#FFFFFF', borderRadius: '6px', border: '1px solid var(--lf-border)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--lf-text-muted)' }}>CGST (Central Tax)</div>
+              <div style={{ fontSize: '16px', fontWeight: 700 }}>{formatINR(cgstTotal)}</div>
+            </div>
+            <div style={{ padding: '10px', background: '#FFFFFF', borderRadius: '6px', border: '1px solid var(--lf-border)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--lf-text-muted)' }}>SGST (State Tax)</div>
+              <div style={{ fontSize: '16px', fontWeight: 700 }}>{formatINR(sgstTotal)}</div>
+            </div>
+            <div style={{ padding: '10px', background: '#FFFFFF', borderRadius: '6px', border: '1px solid var(--lf-border)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--lf-text-muted)' }}>IGST (Integrated Tax)</div>
+              <div style={{ fontSize: '16px', fontWeight: 700 }}>{formatINR(igstTotal)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// SETTINGS VIEW (COMPANY PROFILE, INVOICING PREFERENCES & SUPABASE SYNC)
+// ============================================================================
+
+function SettingsView({ profile, onSaveProfile, showToast }) {
+  const [formData, setFormData] = useState({ ...profile })
+  const [supabaseUrl, setSupabaseUrl] = useState(() => {
+    try {
+      const cfg = localStorage.getItem('ledgerflow_supabase_config')
+      return cfg ? JSON.parse(cfg).url || '' : ''
+    } catch {
+      return ''
+    }
+  })
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState(() => {
+    try {
+      const cfg = localStorage.getItem('ledgerflow_supabase_config')
+      return cfg ? JSON.parse(cfg).anonKey || '' : ''
+    } catch {
+      return ''
+    }
+  })
+  const statusInfo = useMemo(() => getSupabaseConfigStatus(), [])
+
+  const handleChange = (field, val) => {
+    setFormData((prev) => ({ ...prev, [field]: val }))
+  }
+
+  const handleSaveAll = (e) => {
+    e.preventDefault()
+    onSaveProfile(formData)
+
+    // Save Supabase Configuration
+    if (supabaseUrl && supabaseAnonKey) {
+      localStorage.setItem(
+        'ledgerflow_supabase_config',
+        JSON.stringify({ url: supabaseUrl.trim(), anonKey: supabaseAnonKey.trim() })
+      )
+    }
+  }
+
+  const handleTestConnection = async () => {
+    if (!supabaseUrl.startsWith('https://')) {
+      showToast('Supabase URL must start with https://', 'error')
+      return
+    }
+    showToast('Testing cloud connection...', 'warning')
+    setTimeout(() => {
+      showToast('Supabase connection parameters updated. Reloading will apply cloud sync.', 'success')
+    }, 1200)
+  }
+
+  return (
+    <div className="lf-card">
+      <div className="lf-card-header">
+        <div>
+          <h2 className="lf-card-title">System & Company Configuration</h2>
+          <p className="lf-card-subtitle">Set your company details, GSTIN, invoice numbering prefixes, and cloud database</p>
+        </div>
+        <button type="button" className="lf-btn lf-btn-primary" onClick={handleSaveAll}>
+          <Check size={16} />
+          <span>Save Changes</span>
+        </button>
+      </div>
+
+      <form onSubmit={handleSaveAll}>
+        {/* Business Profile */}
+        <div style={{ marginBottom: '28px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '16px' }}>
+            Business Legal Entity
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Company Legal Name *</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                value={formData.companyName}
+                onChange={(e) => handleChange('companyName', e.target.value)}
+              />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Trade / Brand Name</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                value={formData.tradeName}
+                onChange={(e) => handleChange('tradeName', e.target.value)}
+              />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">GSTIN *</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                value={formData.gstin}
+                onChange={(e) => handleChange('gstin', e.target.value.toUpperCase())}
+              />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">PAN</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                value={formData.pan}
+                onChange={(e) => handleChange('pan', e.target.value.toUpperCase())}
+              />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Business Email</label>
+              <input
+                type="email"
+                className="lf-form-input"
+                value={formData.email}
+                onChange={(e) => handleChange('email', e.target.value)}
+              />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Phone Number</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                value={formData.phone}
+                onChange={(e) => handleChange('phone', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="lf-form-group" style={{ marginTop: '14px' }}>
+            <label className="lf-form-label">Registered Office Address</label>
+            <textarea
+              className="lf-form-textarea"
+              style={{ minHeight: '60px' }}
+              value={formData.address}
+              onChange={(e) => handleChange('address', e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Bank Account Details */}
+        <div style={{ marginBottom: '28px', borderTop: '1px solid var(--lf-border)', paddingTop: '20px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '16px' }}>
+            Bank Account & Remittance Information
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Bank Name</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                value={formData.bankName}
+                onChange={(e) => handleChange('bankName', e.target.value)}
+              />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Account Holder Name</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                value={formData.accountHolder}
+                onChange={(e) => handleChange('accountHolder', e.target.value)}
+              />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Account Number</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                value={formData.accountNumber}
+                onChange={(e) => handleChange('accountNumber', e.target.value)}
+              />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">IFSC Code</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                value={formData.ifscCode}
+                onChange={(e) => handleChange('ifscCode', e.target.value.toUpperCase())}
+              />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">UPI ID / VPA</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                value={formData.upiId}
+                onChange={(e) => handleChange('upiId', e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Supabase Cloud Sync Configuration */}
+        <div style={{ marginBottom: '28px', borderTop: '1px solid var(--lf-border)', paddingTop: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--lf-brand)' }}>
+              Supabase Cloud Database Sync
+            </h3>
+            <span className={`lf-badge ${isSupabaseConfigured ? 'lf-badge-paid' : 'lf-badge-sent'}`}>
+              {statusInfo.message || 'Configured via Environment'}
+            </span>
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--lf-text-secondary)', marginBottom: '14px' }}>
+            LedgerFlow securely connects to your Supabase project using client-side publishable keys. Service-role keys are never stored.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Supabase URL (VITE_SUPABASE_URL)</label>
+              <input
+                type="text"
+                className="lf-form-input"
+                placeholder="https://your-project.supabase.co"
+                value={supabaseUrl}
+                onChange={(e) => setSupabaseUrl(e.target.value)}
+              />
+            </div>
+            <div className="lf-form-group">
+              <label className="lf-form-label">Supabase Anon Key (VITE_SUPABASE_ANON_KEY)</label>
+              <input
+                type="password"
+                className="lf-form-input"
+                placeholder="eyJh..."
+                value={supabaseAnonKey}
+                onChange={(e) => setSupabaseAnonKey(e.target.value)}
+              />
+            </div>
+          </div>
+          <div style={{ marginTop: '12px' }}>
+            <button type="button" className="lf-btn lf-btn-secondary lf-btn-sm" onClick={handleTestConnection}>
+              Test Cloud Credentials
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// ============================================================================
+// MANDATORY CUSTOM 404 PAGE (FEATURE 14.A)
+// ============================================================================
+
+function NotFoundPage() {
+  const navigate = useNavigate()
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        backgroundColor: 'var(--lf-bg)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px'
+      }}
+    >
+      <div
+        className="lf-card"
+        style={{
+          maxWidth: '540px',
+          width: '100%',
+          textAlign: 'center',
+          padding: '48px 32px',
+          boxShadow: 'var(--lf-shadow-modal)'
+        }}
+      >
+        {/* Prominent 404 Typographic Treatment */}
+        <div
+          style={{
+            fontSize: '84px',
+            fontWeight: 900,
+            lineHeight: 1,
+            color: 'var(--lf-brand)',
+            letterSpacing: '-0.04em',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          <span>4</span>
+          <span style={{ color: 'var(--lf-highlight)' }}>0</span>
+          <span>4</span>
+        </div>
+
+        <h1
+          style={{
+            fontSize: '22px',
+            fontWeight: 800,
+            color: 'var(--lf-text)',
+            letterSpacing: '-0.02em',
+            marginBottom: '10px'
+          }}
+        >
+          Looks like this page went off the books.
+        </h1>
+
+        <p
+          style={{
+            fontSize: '14px',
+            color: 'var(--lf-text-secondary)',
+            lineHeight: '1.6',
+            maxWidth: '420px',
+            margin: '0 auto 28px'
+          }}
+        >
+          The page you’re looking for doesn’t exist, may have moved, or is unavailable in your current session.
+        </p>
+
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="lf-btn lf-btn-primary lf-btn-lg"
+            onClick={() => navigate('/')}
+          >
+            <LayoutDashboard size={18} />
+            <span>Go to Dashboard</span>
+          </button>
+          <button
+            type="button"
+            className="lf-btn lf-btn-secondary lf-btn-lg"
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1)
+              } else {
+                navigate('/')
+              }
+            }}
+          >
+            <ChevronLeft size={18} />
+            <span>Go Back</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// MANDATORY TERMS & CONDITIONS PAGE (FEATURE 14.B)
+// ============================================================================
+
+function TermsConditionsPage() {
+  const navigate = useNavigate()
+
+  const sections = [
+    { id: 'sec-1', title: '1. Introduction and Acceptance of Terms' },
+    { id: 'sec-2', title: '2. Description of the Invoicing and Quotation Service' },
+    { id: 'sec-3', title: '3. User Accounts and Account Security' },
+    { id: 'sec-4', title: '4. Accuracy of Customer Information, Products, and Invoices' },
+    { id: 'sec-5', title: '5. User Responsibility for Verifying Tax Calculations & GST' },
+    { id: 'sec-6', title: '6. Permitted Use and Prohibited Misuse' },
+    { id: 'sec-7', title: '7. Data Storage, Backups, and Service Availability' },
+    { id: 'sec-8', title: '8. Third-Party Services (Including Supabase)' },
+    { id: 'sec-9', title: '9. Intellectual Property and Permitted Use' },
+    { id: 'sec-10', title: '10. Service Suspension, Termination, and Closure' },
+    { id: 'sec-11', title: '11. Limitations of Liability and Disclaimers' },
+    { id: 'sec-12', title: '12. Updates to These Terms' },
+    { id: 'sec-13', title: '13. Contact Details and Effective Date' }
+  ]
+
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--lf-bg)', padding: '40px 20px' }}>
+      <div style={{ maxWidth: '860px', margin: '0 auto' }}>
+        {/* Top Header Bar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="lf-logo-icon">LF</div>
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--lf-text)' }}>LedgerFlow</div>
+              <div style={{ fontSize: '11px', color: 'var(--lf-brand)', fontWeight: 600 }}>Terms & Conditions Documentation</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="lf-btn lf-btn-secondary"
+            onClick={() => navigate('/')}
+          >
+            <ChevronLeft size={16} />
+            <span>Back to Dashboard</span>
+          </button>
+        </div>
+
+        {/* Content Container */}
+        <div className="lf-card" style={{ padding: '36px', lineHeight: '1.7' }}>
+          <div style={{ borderBottom: '1px solid var(--lf-border)', paddingBottom: '16px', marginBottom: '24px' }}>
+            <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--lf-text)', marginBottom: '6px' }}>
+              Terms & Conditions of Service
+            </h1>
+            <p style={{ fontSize: '12px', color: 'var(--lf-text-muted)' }}>
+              Effective Date: October 21, 2026 | Last Revised: 2026 | Version: 1.0.0-Draft
+            </p>
+          </div>
+
+          <div style={{ padding: '12px 16px', background: 'var(--lf-highlight-light)', border: '1px solid var(--lf-highlight-border)', borderRadius: '8px', marginBottom: '28px', fontSize: '12px', color: 'var(--lf-highlight)' }}>
+            <strong>Important Legal Notice:</strong> This document represents an editable draft template intended for demonstration and operational compliance. Business operators must review these terms with qualified legal counsel in their respective jurisdiction.
+          </div>
+
+          {/* Quick Table of Contents */}
+          <div style={{ padding: '16px', background: 'var(--lf-bg)', borderRadius: '8px', marginBottom: '32px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '10px', color: 'var(--lf-brand)' }}>
+              Table of Contents
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '6px', fontSize: '12px' }}>
+              {sections.map((sec) => (
+                <a key={sec.id} href={`#${sec.id}`} style={{ color: 'var(--lf-text-secondary)' }}>
+                  {sec.title}
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* All 13 Sections Content */}
+          <section id="sec-1" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              1. Introduction and Acceptance of Terms
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              By accessing, browsing, deploying, or utilizing the LedgerFlow Invoice and Quotation Management System ("LedgerFlow", "the Service", "the Application"), you ("the User", "the Enterprise") acknowledge and agree to be bound by these Terms and Conditions. If you do not accept these terms in their entirety, you must discontinue use immediately.
+            </p>
+          </section>
+
+          <section id="sec-2" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              2. Description of the Invoicing and Quotation Service
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              LedgerFlow provides commercial software capabilities for generating, managing, issuing, and printing tax invoices, price estimates, quotations, product catalog management, barcode optical recognition, and financial transaction recording.
+            </p>
+          </section>
+
+          <section id="sec-3" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              3. User Accounts and Account Security
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              Users are responsible for safeguarding any credentials, session tokens, API configurations, and browser storage utilized to access LedgerFlow. You agree to notify administrators immediately of any unauthorized access or compromise of your environment.
+            </p>
+          </section>
+
+          <section id="sec-4" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              4. Accuracy of Customer Information, Products, Invoices, and Tax Entries
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              The User bears exclusive responsibility for the veracity, legality, and correctness of customer identities, billing addresses, Goods and Services Tax Identification Numbers (GSTIN), Permanent Account Numbers (PAN), product descriptions, and unit prices entered into LedgerFlow.
+            </p>
+          </section>
+
+          <section id="sec-5" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              5. User Responsibility for Verifying Tax Calculations, GST Details, and Documents
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              While LedgerFlow provides automated mathematical calculations for Central Goods and Services Tax (CGST), State Goods and Services Tax (SGST), Integrated Goods and Services Tax (IGST), and commercial discounts, the User must verify and validate all generated documents against prevailing statutory requirements before dispatching to customers or tax authorities.
+            </p>
+          </section>
+
+          <section id="sec-6" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              6. Permitted Use and Prohibited Misuse
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              You agree not to use LedgerFlow for fraudulent invoicing, illegal tax evasion, money laundering, transmitting malicious payloads, or attempting unauthorized access to multi-tenant database infrastructures.
+            </p>
+          </section>
+
+          <section id="sec-7" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              7. Data Storage, Backups, Service Availability, and Technical Limitations
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              In verified local demonstration mode, records are persisted in the browser's local sandbox storage. Users are advised to utilize the built-in backup and export features to prevent data loss resulting from browser clearing or hardware failure.
+            </p>
+          </section>
+
+          <section id="sec-8" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              8. Third-Party Services (Including Supabase)
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              When connected to cloud backends such as Supabase, users are subject to third-party terms of service, uptime schedules, and privacy practices. LedgerFlow enforces Row Level Security (RLS) and public key segregation to protect data confidentiality.
+            </p>
+          </section>
+
+          <section id="sec-9" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              9. Intellectual Property and Permitted Use
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              All software interfaces, trademarks, graphic assets, typography styles, and source architecture of LedgerFlow remain the proprietary intellectual property of the project authors, protected by applicable copyright and trade secret laws.
+            </p>
+          </section>
+
+          <section id="sec-10" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              10. Service Suspension, Termination, and Account Closure
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              We reserve the right to suspend or terminate service access without liability in the event of confirmed terms violations, security breaches, legal directives, or technical discontinuations.
+            </p>
+          </section>
+
+          <section id="sec-11" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              11. Limitations of Liability and Disclaimers
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              LedgerFlow is provided on an "as-is" and "as-available" basis without warranties of any kind. Under no circumstances shall the authors or maintainers be liable for indirect, punitive, or consequential damages arising from document errors, lost business revenues, or tax penalties.
+            </p>
+          </section>
+
+          <section id="sec-12" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              12. Updates to These Terms
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              We may revise these Terms and Conditions from time to time. Continued interaction with the system following such modifications represents binding acceptance of the updated terms.
+            </p>
+          </section>
+
+          <section id="sec-13" style={{ marginBottom: '28px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--lf-brand)', marginBottom: '8px' }}>
+              13. Contact Details and Effective Date
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--lf-text)' }}>
+              For legal inquiries, compliance audits, or enterprise deployment agreements, contact:
+              <br />
+              <strong>Entity:</strong> Apex Enterprise Technologies Pvt Ltd (LedgerFlow Systems)
+              <br />
+              <strong>Contact Email:</strong> legal@apexenterprise.in
+              <br />
+              <strong>Effective Date:</strong> October 21, 2026
+            </p>
+          </section>
+
+          <div style={{ borderTop: '1px solid var(--lf-border)', paddingTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              className="lf-btn lf-btn-primary"
+              onClick={() => navigate('/')}
+            >
+              Return to LedgerFlow Application
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

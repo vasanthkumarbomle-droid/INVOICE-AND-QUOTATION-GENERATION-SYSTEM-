@@ -1,7 +1,7 @@
 {
-  "name": "invoice-system",
+  "name": "ledgerflow-invoice-system",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,7 @@
     "@supabase/supabase-js": "^2.118.0",
     "@tailwindcss/vite": "^4.3.3",
     "date-fns": "^4.4.0",
+    "html5-qrcode": "^2.3.8",
     "lucide-react": "^1.61.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
