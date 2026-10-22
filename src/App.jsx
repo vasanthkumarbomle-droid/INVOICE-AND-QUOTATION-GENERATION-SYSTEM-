@@ -657,15 +657,31 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
     loadClients()
   }, [org.id])
 
-  const [products, setProducts] = useState(() => {
-    try {
-      const saved = localStorage.getItem('lf_products')
-      return saved ? JSON.parse(saved) : INITIAL_PRODUCTS
-    } catch {
-      return INITIAL_PRODUCTS
-    }
-  })
+    const [products, setProducts] = useState([])
 
+  const loadProducts = async () => {
+    try {
+      const rows = await db.listProducts(org.id)
+      setProducts(rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        sku: r.sku || '',
+        barcode: r.barcode || '',
+        category: r.category || 'Hardware',
+        price: Number(r.price),
+        gstRate: Number(r.gst_rate),
+        hsn: r.hsn_sac || '',
+        stock: Number(r.stock_qty),
+        description: r.description || '',
+      })))
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  useEffect(() => {
+    loadProducts()
+  }, [org.id])
   const [invoices, setInvoices] = useState(() => {
     try {
       const saved = localStorage.getItem('lf_invoices')
@@ -814,8 +830,12 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
         })
         .catch((e) => showToast(e.message, 'error'))
     } else if (type === 'product') {
-      setProducts((prev) => prev.filter((p) => p.id !== id))
-      showToast('Product removed successfully', 'success')
+           db.deleteProduct(id)
+        .then(() => {
+          setProducts((prev) => prev.filter((p) => p.id !== id))
+          showToast('Product removed successfully', 'success')
+        })
+        .catch((e) => showToast(e.message, 'error'))
     }
     setDeleteConfirmModal({ open: false, type: '', id: '', title: '' })
   }
@@ -1433,15 +1453,26 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
         <ProductModal
           product={editingProduct}
           onClose={() => setProductModalOpen(false)}
-          onSave={(savedProduct) => {
-            setProducts((prev) => {
-              if (editingProduct) {
-                return prev.map((p) => (p.id === savedProduct.id ? savedProduct : p))
+                  onSave={async (savedProduct) => {
+            try {
+              const payload = {
+                name: savedProduct.name,
+                sku: savedProduct.sku || null,
+                barcode: savedProduct.barcode || null,
+                category: savedProduct.category,
+                price: savedProduct.price,
+                gst_rate: savedProduct.gstRate,
+                stock_qty: savedProduct.stock,
+                description: savedProduct.description,
               }
-              return [{ ...savedProduct, id: `prd-${Date.now()}` }, ...prev]
-            })
-            setProductModalOpen(false)
-            showToast(`Product ${savedProduct.name} saved`, 'success')
+              if (editingProduct) await db.updateProduct(editingProduct.id, payload)
+              else await db.addProduct(org.id, payload)
+              await loadProducts()
+              setProductModalOpen(false)
+              showToast(`Product ${savedProduct.name} saved`, 'success')
+            } catch (e) {
+              showToast(e.message, 'error')
+            }
           }}
         />
       )}
