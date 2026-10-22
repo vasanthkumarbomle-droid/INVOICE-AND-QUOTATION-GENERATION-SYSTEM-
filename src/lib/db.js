@@ -115,3 +115,85 @@ export const deleteInvoice = (id) => supabase.from('invoices').delete().eq('id',
 
 export const recordPaymentFull = (invoiceId, amount, method, reference, paidAt) =>
   supabase.from('payments').insert({ invoice_id: invoiceId, amount, method, reference, ...(paidAt ? { paid_at: paidAt } : {}) }).select().single().then(must)
+
+export const listQuotationsFull = (orgId) =>
+  supabase
+    .from('quotations')
+    .select('*, clients(*), quotation_items(*)')
+    .eq('org_id', orgId)
+    .order('created_at', { ascending: false })
+    .then(must)
+
+export const saveQuotation = async (orgId, quote, items = []) => {
+  let id = quote.id
+
+  const fields = {
+    client_id: quote.client_id ?? quote.clientId,
+    issue_date: quote.issue_date ?? quote.issueDate,
+    valid_until:
+      quote.valid_until ??
+      quote.validUntil ??
+      quote.due_date ??
+      quote.dueDate ??
+      null,
+    status: String(quote.status ?? 'draft').toLowerCase(),
+    notes: quote.notes ?? null,
+    terms: quote.terms ?? null,
+  }
+
+  if (id) {
+    await supabase
+      .from('quotations')
+      .update(fields)
+      .eq('id', id)
+      .eq('org_id', orgId)
+      .then(must)
+
+    await supabase
+      .from('quotation_items')
+      .delete()
+      .eq('quotation_id', id)
+      .eq('org_id', orgId)
+      .then(must)
+  } else {
+    const row = await supabase
+      .from('quotations')
+      .insert({ ...fields, org_id: orgId })
+      .select('id')
+      .single()
+      .then(must)
+
+    id = row.id
+  }
+
+  if (items.length) {
+    await supabase
+      .from('quotation_items')
+      .insert(
+        items.map((it, i) => ({
+          quotation_id: id,
+          org_id: orgId,
+          product_id: it.product_id ?? it.productId ?? null,
+          position: i,
+          description: it.description ?? '',
+          hsn_sac: it.hsn_sac ?? it.hsnSac ?? null,
+          unit: it.unit ?? 'unit',
+          quantity: it.quantity ?? 1,
+          unit_price: it.unit_price ?? it.unitPrice ?? 0,
+          discount_pct: it.discount_pct ?? it.discountPct ?? 0,
+          gst_rate: it.gst_rate ?? it.gstRate ?? 0,
+        }))
+      )
+      .then(must)
+  }
+
+  return id
+}
+
+export const convertQuotationToInvoice = (quoteId, dueDate) =>
+  supabase
+    .rpc('convert_quotation_to_invoice', {
+      p_quote_id: quoteId,
+      p_due_date: dueDate,
+    })
+    .then(must)
