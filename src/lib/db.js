@@ -92,3 +92,26 @@ export const getDashboardStats = async (orgId) => {
     overdueCount: inv.filter(r => r.status === 'overdue').length,
   }
 }
+export const listInvoicesFull = (orgId) =>
+  supabase.from('invoices').select('*, clients(*), invoice_items(*)').eq('org_id', orgId).order('created_at', { ascending: false }).then(must)
+
+export const saveInvoice = async (orgId, inv, items) => {
+  let id = inv.id
+  const fields = { client_id: inv.client_id, issue_date: inv.issue_date, due_date: inv.due_date, status: inv.status, notes: inv.notes }
+  if (id) {
+    await supabase.from('invoices').update(fields).eq('id', id).then(must)
+    await supabase.from('invoice_items').delete().eq('invoice_id', id).then(must)
+  } else {
+    const row = await supabase.from('invoices').insert({ ...fields, org_id: orgId }).select().single().then(must)
+    id = row.id
+  }
+  if (items.length) {
+    await supabase.from('invoice_items').insert(items.map((it, i) => ({ ...it, invoice_id: id, org_id: orgId, position: i }))).then(must)
+  }
+  return id
+}
+
+export const deleteInvoice = (id) => supabase.from('invoices').delete().eq('id', id).then(must)
+
+export const recordPaymentFull = (invoiceId, amount, method, reference, paidAt) =>
+  supabase.from('payments').insert({ invoice_id: invoiceId, amount, method, reference, ...(paidAt ? { paid_at: paidAt } : {}) }).select().single().then(must)

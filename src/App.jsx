@@ -595,6 +595,80 @@ function numberToWordsINR(num) {
 // MAIN APP COMPONENT WRAPPER WITH ROUTER
 // ============================================================================
 
+const STATUS_FROM_DB = {
+  draft: 'Draft', pending: 'Sent', partially_paid: 'Partially Paid',
+  paid: 'Paid', overdue: 'Overdue', cancelled: 'Cancelled',
+}
+const METHOD_TO_DB = {
+  'Bank Transfer (NEFT)': 'bank_transfer', 'RTGS Wire': 'bank_transfer',
+  'UPI Business': 'upi', 'Corporate Credit Card': 'card', Cheque: 'cheque', Cash: 'cash',
+}
+const METHOD_FROM_DB = {
+  bank_transfer: 'Bank Transfer', upi: 'UPI', card: 'Card',
+  cheque: 'Cheque', cash: 'Cash', online: 'Online', other: 'Other',
+}
+
+function mapInvoice(r) {
+  const rows = (r.invoice_items || []).slice().sort((a, b) => a.position - b.position)
+  const items = rows.map((it) => {
+    const qty = Number(it.quantity)
+    const price = Number(it.unit_price)
+    const gst = Number(it.gst_rate)
+    const gross = qty * price
+    const tax = (gross * gst) / 100
+    return {
+      id: it.id, productId: it.product_id || '', description: it.description, sku: '',
+      quantity: qty, unitPrice: price, gstRate: gst, subtotal: gross, taxAmount: tax, total: gross + tax,
+    }
+  })
+  const gross = items.reduce((s, it) => s + it.subtotal, 0)
+  const taxable = Number(r.subtotal)
+  return {
+    id: r.id,
+    documentNumber: r.invoice_number,
+    type: 'invoice',
+    clientId: r.client_id,
+    clientName: r.clients?.name || '',
+    clientEmail: r.clients?.email || '',
+    clientPhone: r.clients?.phone || '',
+    clientAddress: r.clients?.address || '',
+    clientGstin: r.clients?.gstin || '',
+    issueDate: r.issue_date,
+    dueDate: r.due_date,
+    paymentTerms: 'Net 15',
+    status: STATUS_FROM_DB[r.status] || 'Draft',
+    items,
+    subtotal: gross,
+    discountType: 'percentage',
+    discountValue: rows.length ? Number(rows[0].discount_pct) : 0,
+    discountAmount: Math.max(0, gross - taxable),
+    taxableAmount: taxable,
+    cgstAmount: Number(r.cgst_total),
+    sgstAmount: Number(r.sgst_total),
+    igstAmount: Number(r.igst_total),
+    taxAmount: Number(r.tax_total),
+    grandTotal: Number(r.grand_total),
+    amountPaid: Number(r.amount_paid),
+    balanceDue: Number(r.balance_due),
+    notes: r.notes || '',
+  }
+}
+
+function mapPayment(r) {
+  return {
+    id: r.id,
+    paymentNumber: 'PAY-' + r.id.slice(0, 6).toUpperCase(),
+    invoiceId: r.invoice_id,
+    invoiceNumber: r.invoices?.invoice_number || '',
+    clientName: r.invoices?.clients?.name || '',
+    amount: Number(r.amount),
+    paymentDate: r.paid_at,
+    paymentMethod: METHOD_FROM_DB[r.method] || r.method,
+    referenceNumber: r.reference || '',
+    status: 'Completed',
+    notes: r.notes || '',
+  }
+}
 export default function App() {
   return (
     <BrowserRouter>
@@ -682,15 +756,46 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
   useEffect(() => {
     loadProducts()
   }, [org.id])
-  const [invoices, setInvoices] = useState(() => {
-    try {
-      const saved = localStorage.getItem('lf_invoices')
-      return saved ? JSON.parse(saved) : INITIAL_INVOICES
-    } catch {
-      return INITIAL_INVOICES
-    }
-  })
+   const [invoices, setInvoices] = useState([])
 
+  const loadInvoices = async () => {
+    try {
+      const rows = await db.listInvoicesFull(org.id)
+      setInvoices(rows.map(mapInvoice))
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  useEffect(() => {
+    loadInvoices()
+  }, [org.id])
+
+  const saveInvoiceDoc = async (d) => {
+    if (!d.clientId) throw new Error('Please choose a registered client from the dropdown')
+    const gross = d.items.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0)
+    const value = Number(d.discountValue) || 0
+    const pct = d.discountType === 'percentage' ? value : gross > 0 ? (value / gross) * 100 : 0
+    const discountPct = Math.min(100, Math.round(pct * 100) / 100)
+    const items = d.items.map((it) => ({
+      product_id: it.productId || null,
+      description: it.description,
+      quantity: Number(it.quantity),
+      unit_price: Number(it.unitPrice),
+      discount_pct: discountPct,
+      gst_rate: Number(it.gstRate),
+    }))
+    const isExisting = /^[0-9a-f]{8}-/i.test(d.id || '')
+    await db.saveInvoice(org.id, {
+      id: isExisting ? d.id : null,
+      client_id: d.clientId,
+      issue_date: d.issueDate,
+      due_date: d.dueDate,
+      status: d.status === 'Draft' ? 'draft' : 'pending',
+      notes: d.notes || null,
+    }, items)
+    await loadInvoices()
+  }
   const [quotations, setQuotations] = useState(() => {
     try {
       const saved = localStorage.getItem('lf_quotations')
@@ -700,14 +805,20 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
     }
   })
 
-  const [payments, setPayments] = useState(() => {
+    const [payments, setPayments] = useState([])
+
+  const loadPayments = async () => {
     try {
-      const saved = localStorage.getItem('lf_payments')
-      return saved ? JSON.parse(saved) : INITIAL_PAYMENTS
-    } catch {
-      return INITIAL_PAYMENTS
+      const rows = await db.listPayments(org.id)
+      setPayments(rows.map(mapPayment))
+    } catch (e) {
+      console.error(e)
     }
-  })
+  }
+
+  useEffect(() => {
+    loadPayments()
+  }, [org.id])
 
   // Sync to localStorage
   useEffect(() => {
@@ -788,24 +899,27 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
   }
 
   // Duplicate Document
-  const handleDuplicateDoc = (doc) => {
-    const isInv = doc.type === 'invoice'
-    const prefix = isInv ? companyProfile.invoicePrefix : companyProfile.quotationPrefix
-    const nextNum = `${prefix}00${(isInv ? invoices.length : quotations.length) + 1}`
+  const handleDuplicateDoc = async (doc) => {
+    if (doc.type === 'invoice') {
+      try {
+        await saveInvoiceDoc({ ...doc, id: null, status: 'Draft' })
+        showToast('Duplicated as a new draft invoice', 'success')
+      } catch (e) {
+        showToast(e.message, 'error')
+      }
+      return
+    }
+    const nextNum = `${companyProfile.quotationPrefix}00${quotations.length + 1}`
     const duplicated = {
       ...doc,
-      id: `${isInv ? 'inv' : 'qt'}-${Date.now()}`,
+      id: `qt-${Date.now()}`,
       documentNumber: nextNum,
       issueDate: new Date().toISOString().split('T')[0],
       status: 'Draft',
       amountPaid: 0,
       balanceDue: doc.grandTotal
     }
-    if (isInv) {
-      setInvoices((prev) => [duplicated, ...prev])
-    } else {
-      setQuotations((prev) => [duplicated, ...prev])
-    }
+    setQuotations((prev) => [duplicated, ...prev])
     showToast(`Duplicated as new draft ${nextNum}`, 'success')
   }
 
@@ -817,8 +931,12 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
   const executeDelete = () => {
     const { type, id } = deleteConfirmModal
     if (type === 'invoice') {
-      setInvoices((prev) => prev.filter((i) => i.id !== id))
-      showToast('Invoice deleted successfully', 'success')
+        db.deleteInvoice(id)
+        .then(() => {
+          loadInvoices()
+          showToast('Invoice deleted successfully', 'success')
+        })
+        .catch((e) => showToast(e.message, 'error'))
     } else if (type === 'quotation') {
       setQuotations((prev) => prev.filter((q) => q.id !== id))
       showToast('Quotation deleted successfully', 'success')
@@ -1366,19 +1484,15 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
               products={products}
               existingDoc={editingDoc}
               onCancel={() => navigateTo(editorMode === 'invoice' ? '/invoices' : '/quotations')}
-              onSave={(savedDoc) => {
+              onSave={async (savedDoc) => {
                 if (savedDoc.type === 'invoice') {
-                  setInvoices((prev) => {
-                    const idx = prev.findIndex((i) => i.id === savedDoc.id)
-                    if (idx >= 0) {
-                      const updated = [...prev]
-                      updated[idx] = savedDoc
-                      return updated
-                    }
-                    return [savedDoc, ...prev]
-                  })
-                  showToast(`Invoice ${savedDoc.documentNumber} saved successfully`, 'success')
-                  navigateTo('/invoices')
+                  try {
+                    await saveInvoiceDoc(savedDoc)
+                    showToast('Invoice saved successfully', 'success')
+                    navigateTo('/invoices')
+                  } catch (e) {
+                    showToast(e.message, 'error')
+                  }
                 } else {
                   setQuotations((prev) => {
                     const idx = prev.findIndex((q) => q.id === savedDoc.id)
@@ -1393,6 +1507,7 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
                   navigateTo('/quotations')
                 }
               }}
+
               showToast={showToast}
             />
           )}
@@ -1431,6 +1546,7 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
               const payload = {
                 name: savedClient.name,
                 contact_person: savedClient.contactPerson,
+                 state_code: savedClient.gstin ? savedClient.gstin.substring(0, 2) : null,
                 email: savedClient.email,
                 phone: savedClient.phone,
                 gstin: savedClient.gstin,
@@ -1486,27 +1602,22 @@ function LedgerFlowShell({ activeTab = 'dashboard', initialMode = 'invoice' }) {
             setPaymentModalOpen(false)
             setPaymentDoc(null)
           }}
-          onSave={(newPayment) => {
-            setPayments((prev) => [newPayment, ...prev])
-            setInvoices((prev) =>
-              prev.map((inv) => {
-                if (inv.id === newPayment.invoiceId) {
-                  const newPaid = (inv.amountPaid || 0) + newPayment.amount
-                  const newBalance = Math.max(0, inv.grandTotal - newPaid)
-                  const newStatus = newBalance === 0 ? 'Paid' : 'Partially Paid'
-                  return {
-                    ...inv,
-                    amountPaid: newPaid,
-                    balanceDue: newBalance,
-                    status: newStatus
-                  }
-                }
-                return inv
-              })
-            )
-            setPaymentModalOpen(false)
-            setPaymentDoc(null)
-            showToast(`Payment of ${formatINR(newPayment.amount)} recorded`, 'success')
+             onSave={async (p) => {
+            try {
+              await db.recordPaymentFull(
+                p.invoiceId,
+                p.amount,
+                METHOD_TO_DB[p.paymentMethod] || 'other',
+                p.referenceNumber || null,
+                p.paymentDate
+              )
+              await Promise.all([loadInvoices(), loadPayments()])
+              setPaymentModalOpen(false)
+              setPaymentDoc(null)
+              showToast(`Payment of ${formatINR(p.amount)} recorded`, 'success')
+            } catch (e) {
+              showToast(e.message, 'error')
+            }
           }}
         />
       )}
