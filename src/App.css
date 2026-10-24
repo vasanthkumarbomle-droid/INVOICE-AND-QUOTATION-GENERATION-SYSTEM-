@@ -9,11 +9,11 @@
   --lf-bg: #F7F8F5;
   --lf-card: #FFFFFF;
   --lf-card-hover: #FCFDFB;
-  --lf-brand: #286747;            /* Sophisticated forest green */
-  --lf-brand-hover: #20543B;      /* Deeper natural green */
-  --lf-brand-light: #EEF5F1;      /* Soft brand tint */
-  --lf-brand-subtle: #D8E7DE;     /* Light sage border */
-  --lf-accent: #86B99A;           /* Fresh muted green */
+  --lf-brand: #8B4F2E;            /* Warm copper brand */
+  --lf-brand-hover: #6F3F27;      /* Deep copper hover */
+  --lf-brand-light: #F8EFE8;      /* Soft copper tint */
+  --lf-brand-subtle: #E9D7CC;     /* Soft copper border */
+  --lf-accent: #D5A178;           /* Muted warm accent */
   --lf-highlight: #D68B45;        /* Warm amber/copper */
   --lf-highlight-light: #FBF5EE;  /* Warm amber background */
   --lf-highlight-border: #EED7C1; /* Warm amber subtle border */
@@ -24,11 +24,11 @@
   --lf-text-muted: #8F9991;       /* Light grey-green */
   --lf-border: #E6EAE5;           /* Soft neutral grey */
   --lf-border-strong: #D1D8D0;    /* Darker border for inputs */
-  --lf-border-focus: #286747;
+  --lf-border-focus: #8B4F2E;
 
   /* Status Colors */
-  --lf-success: #286747;
-  --lf-success-bg: #EEF5F1;
+  --lf-success: #8B4F2E;
+  --lf-success-bg: #F8EFE8;
   --lf-warning: #C57B36;
   --lf-warning-bg: #FBF4EC;
   --lf-danger: #B83A3A;
@@ -156,7 +156,7 @@ a:hover {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  box-shadow: 0 2px 6px rgba(40, 103, 71, 0.25);
+  box-shadow: 0 2px 6px rgba(139, 79, 46, 0.25);
 }
 
 .lf-brand-text {
@@ -212,7 +212,7 @@ a:hover {
   background-color: var(--lf-brand);
   color: #FFFFFF;
   font-weight: 600;
-  box-shadow: 0 2px 6px rgba(40, 103, 71, 0.22);
+  box-shadow: 0 2px 6px rgba(139, 79, 46, 0.22);
 }
 
 .lf-nav-icon {
@@ -268,7 +268,7 @@ a:hover {
 
 .lf-demo-pill.connected .lf-demo-dot {
   background-color: var(--lf-brand);
-  box-shadow: 0 0 6px rgba(40, 103, 71, 0.4);
+  box-shadow: 0 0 6px rgba(139, 79, 46, 0.4);
 }
 
 .lf-demo-dot {
@@ -674,12 +674,12 @@ a:hover {
 .lf-btn-primary {
   background-color: var(--lf-brand);
   color: #FFFFFF;
-  box-shadow: 0 1px 3px rgba(40, 103, 71, 0.2);
+  box-shadow: 0 1px 3px rgba(139, 79, 46, 0.2);
 }
 
 .lf-btn-primary:hover:not(:disabled) {
   background-color: var(--lf-brand-hover);
-  box-shadow: 0 2px 6px rgba(40, 103, 71, 0.3);
+  box-shadow: 0 2px 6px rgba(139, 79, 46, 0.3);
 }
 
 .lf-btn-secondary {
@@ -1241,7 +1241,7 @@ a:hover {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    border-bottom: 2pt solid #286747;
+    border-bottom: 2pt solid #8B4F2E;
     padding-bottom: 14pt;
     margin-bottom: 18pt;
   }
@@ -1249,7 +1249,7 @@ a:hover {
   .lf-print-company-name {
     font-size: 18pt;
     font-weight: 700;
-    color: #286747;
+    color: #8B4F2E;
   }
 
   .lf-print-doc-title {
@@ -1273,10 +1273,10 @@ a:hover {
   }
 
   .lf-print-table th {
-    background-color: #EEF5F1 !important;
-    color: #286747 !important;
+    background-color: #F8EFE8 !important;
+    color: #8B4F2E !important;
     font-weight: 700;
-    border-bottom: 1.5pt solid #286747;
+    border-bottom: 1.5pt solid #8B4F2E;
     padding: 6pt 8pt;
     text-align: left;
     font-size: 10pt;
@@ -1305,12 +1305,12 @@ a:hover {
   }
 
   .lf-print-grand-total {
-    border-top: 1.5pt solid #286747;
+    border-top: 1.5pt solid #8B4F2E;
     margin-top: 6pt;
     padding-top: 6pt;
     font-weight: 800;
     font-size: 13pt;
-    color: #286747;
+    color: #8B4F2E;
   }
 
   .lf-print-footer {
