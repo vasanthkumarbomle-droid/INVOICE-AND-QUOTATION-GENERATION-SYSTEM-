@@ -7,7 +7,10 @@ function Layout({ title, subtitle, children }) {
   return (
     <div className="auth-page">
       <div className="auth-brand">
-        <div className="auth-logo">LF</div>
+        <div className="auth-brand-heading">
+          <div className="auth-logo">LF</div>
+          <span>LedgerFlow</span>
+        </div>
         <h1>Billing that runs itself.</h1>
         <p>Create GST-ready invoices and quotations, track payments, and send reminders automatically.</p>
         <ul className="auth-features">
